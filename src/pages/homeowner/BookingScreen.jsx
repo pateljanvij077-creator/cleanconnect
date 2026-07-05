@@ -17,6 +17,7 @@ export default function BookingScreen() {
   const [loading, setLoading] = useState(true)
 
   // Form states
+  const [isImmediate, setIsImmediate] = useState(false)
   const [bookingDate, setBookingDate] = useState('')
   const [bookingTime, setBookingTime] = useState('09:00')
   const [notes, setNotes] = useState('')
@@ -56,10 +57,26 @@ export default function BookingScreen() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!bookingDate) {
-      toast.error('Select a booking date')
-      return
+    let finalDate = bookingDate
+    let finalTime = `${bookingTime}:00`
+
+    if (isImmediate) {
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      finalDate = `${year}-${month}-${day}`
+      
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      finalTime = `${hours}:${minutes}:00`
+    } else {
+      if (!bookingDate) {
+        toast.error('Select a booking date')
+        return
+      }
     }
+
     if (!address) {
       toast.error('Please enter delivery address')
       return
@@ -71,21 +88,22 @@ export default function BookingScreen() {
       const booking = await createBooking({
         homeowner_id: homeowner.id,
         worker_id: worker.id,
-        booking_date: bookingDate,
-        booking_time: `${bookingTime}:00`,
+        service_date: finalDate,
+        service_time: finalTime,
         notes,
         address,
-        latitude: homeowner.latitude,
-        longitude: homeowner.longitude,
+        total_price: worker.pricing_per_hour * 2, // Assuming 2 hours default
         payment_method: paymentMethod,
-        status: 'pending'
+        status: 'pending',
+        latitude: homeowner?.latitude || null,
+        longitude: homeowner?.longitude || null
       })
 
       // 2. Alert worker via in-app notifications system
       await createNotification(
-        worker.user_id,
+        worker.id,
         'New Booking Request!',
-        `${homeowner.full_name} requested your service on ${bookingDate} at ${bookingTime}`,
+        `${homeowner.full_name} requested your service ${isImmediate ? 'RIGHT NOW' : `on ${finalDate} at ${finalTime}`}`,
         'booking',
         { bookingId: booking.id }
       )
@@ -129,27 +147,58 @@ export default function BookingScreen() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Service Date</label>
-            <div style={{ position: 'relative' }}>
-              <input 
-                type="date" 
-                className="form-input" 
-                min={new Date().toISOString().split('T')[0]}
-                value={bookingDate}
-                onChange={(e) => setBookingDate(e.target.value)}
-                required
-              />
+            <label className="form-label">When do you need the service?</label>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+              <label className="card glass flex-center" style={{ flex: 1, padding: '0.75rem', cursor: 'pointer', border: !isImmediate ? '2px solid var(--primary)' : '1px solid var(--border-glass)' }}>
+                <input 
+                  type="radio" 
+                  name="bookingTiming" 
+                  checked={!isImmediate} 
+                  onChange={() => setIsImmediate(false)}
+                  style={{ marginRight: '6px' }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>📅 Schedule for later</span>
+              </label>
+
+              <label className="card glass flex-center" style={{ flex: 1, padding: '0.75rem', cursor: 'pointer', border: isImmediate ? '2px solid var(--primary)' : '1px solid var(--border-glass)' }}>
+                <input 
+                  type="radio" 
+                  name="bookingTiming" 
+                  checked={isImmediate} 
+                  onChange={() => setIsImmediate(true)}
+                  style={{ marginRight: '6px' }}
+                />
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>⚡ Book Right Now</span>
+              </label>
             </div>
           </div>
 
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Preferred Time Slot</label>
-            <select className="form-select" value={bookingTime} onChange={(e) => setBookingTime(e.target.value)}>
-              {timeSlots.map(slot => (
-                <option key={slot} value={slot}>{slot}</option>
-              ))}
-            </select>
-          </div>
+          {!isImmediate && (
+            <>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Service Date</label>
+                <div style={{ position: 'relative' }}>
+                  <input 
+                    type="date" 
+                    className="form-input" 
+                    min={new Date().toISOString().split('T')[0]}
+                    value={bookingDate}
+                    onChange={(e) => setBookingDate(e.target.value)}
+                    required={!isImmediate}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Preferred Time Slot</label>
+                <select className="form-select" value={bookingTime} onChange={(e) => setBookingTime(e.target.value)}>
+                  {timeSlots.map(slot => (
+                    <option key={slot} value={slot}>{slot}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
 
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label">Service Address</label>

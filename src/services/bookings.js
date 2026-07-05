@@ -125,3 +125,68 @@ export async function getFavorites(homeownerId) {
   if (error) throw error
   return data
 }
+
+export async function saveHashedCode(bookingId, hashedCode, codeType) {
+  // Delete any existing active codes of this type first to prevent duplicates
+  await supabase
+    .from('booking_verification_codes')
+    .delete()
+    .eq('booking_id', bookingId)
+    .eq('code_type', codeType)
+
+  const expiryTime = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes
+
+  const { data, error } = await supabase
+    .from('booking_verification_codes')
+    .insert([{
+      booking_id: bookingId,
+      hashed_code: hashedCode,
+      expiry_time: expiryTime,
+      code_type: codeType,
+      used: false
+    }])
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function getActiveCode(bookingId, codeType) {
+  const { data, error } = await supabase
+    .from('booking_verification_codes')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .eq('code_type', codeType)
+    .eq('used', false)
+    .gt('expiry_time', new Date().toISOString())
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+}
+
+export async function deleteCode(bookingId, codeType) {
+  const { error } = await supabase
+    .from('booking_verification_codes')
+    .delete()
+    .eq('booking_id', bookingId)
+    .eq('code_type', codeType)
+
+  if (error) throw error
+}
+
+export async function verifyBookingCodeRPC(bookingId, enteredCode, lat, lng) {
+  const { data, error } = await supabase
+    .rpc('verify_booking_code', {
+      p_booking_id: bookingId,
+      p_entered_code: enteredCode,
+      p_cleaner_lat: lat,
+      p_cleaner_lng: lng
+    })
+
+  if (error) throw error
+  return data
+}
+
+export const verifyBookingCode = verifyBookingCodeRPC;
