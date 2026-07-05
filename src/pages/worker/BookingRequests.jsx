@@ -42,9 +42,9 @@ export default function BookingRequests() {
       
       // Notify Homeowner
       await createNotification(
-        booking.homeowners.user_id,
+        booking.homeowners.id,
         'Booking Accepted',
-        `${worker.full_name} has accepted your booking request for ${formatDate(booking.booking_date)}!`,
+        `${worker.full_name} has accepted your booking request for ${formatDate(booking.service_date)}!`,
         'booking',
         { bookingId: booking.id }
       )
@@ -67,7 +67,7 @@ export default function BookingRequests() {
       
       // Notify Homeowner
       await createNotification(
-        booking.homeowners.user_id,
+        booking.homeowners.id,
         'Booking Rejected',
         `${worker.full_name} rejected your booking request. Reason: ${reason || 'Unavailable'}`,
         'booking',
@@ -105,7 +105,7 @@ export default function BookingRequests() {
                   <div>
                     <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{r.homeowners?.full_name}</h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Requested: {formatDate(r.booking_date)} at {formatTime(r.booking_time)}
+                      Requested: {formatDate(r.service_date)} at {formatTime(r.service_time)}
                     </p>
                     <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                       📍 <strong>Address:</strong> {r.address}

@@ -4,6 +4,7 @@ import L from 'leaflet'
 import { Navigation } from 'lucide-react'
 import { getCurrentPosition, reverseGeocode } from '../../utils/gps'
 import { toast } from 'react-hot-toast'
+import 'leaflet/dist/leaflet.css'
 
 // Fix default marker icon bug in Leaflet
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
@@ -25,6 +26,18 @@ function ChangeView({ center }) {
       map.setView(center, 16)
     }
   }, [center, map])
+  return null
+}
+
+// Auto resizer component to invalidate Leaflet cache on center change
+function MapResizer({ center }) {
+  const map = useMap()
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize()
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [map, center])
   return null
 }
 
@@ -135,6 +148,7 @@ export default function LocationPicker({ lat, lng, onLocationChange }) {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <ChangeView center={center} />
+          <MapResizer center={center} />
           <MapEventsHandler onPinLocation={handleLocationUpdate} />
           {lat && lng && (
             <Marker 

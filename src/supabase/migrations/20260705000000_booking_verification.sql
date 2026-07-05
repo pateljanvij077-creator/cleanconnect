@@ -201,6 +201,10 @@ BEGIN
         -- Combine service_date and service_time and interpret as Asia/Kolkata timezone
         v_scheduled_start := (v_booking_record.service_date + v_booking_record.service_time) AT TIME ZONE 'Asia/Kolkata';
 
+        IF v_scheduled_start IS NULL THEN
+            RETURN jsonb_build_object('success', false, 'message', 'Invalid scheduled service date or time.');
+        END IF;
+
         -- Verify scheduled window (1 hour early to 2 hours late allowed)
         IF v_now < v_scheduled_start - INTERVAL '1 hour' OR
            v_now > v_scheduled_start + INTERVAL '2 hours' THEN

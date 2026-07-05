@@ -49,6 +49,11 @@ import LocationManagement from './pages/admin/LocationManagement'
 import ComplaintManagement from './pages/admin/ComplaintManagement'
 import NotificationManagement from './pages/admin/NotificationManagement'
 import SystemSettings from './pages/admin/SystemSettings'
+import BookingManagement from './pages/admin/BookingManagement'
+import ServiceCategoryManagement from './pages/admin/ServiceCategoryManagement'
+import ReviewManagement from './pages/admin/ReviewManagement'
+import RolesPermissionsManagement from './pages/admin/RolesPermissionsManagement'
+import BackupRetentionManagement from './pages/admin/BackupRetentionManagement'
 
 // Error pages
 import NotFound from './pages/errors/NotFound'
@@ -127,11 +132,16 @@ function App() {
             <Route path="/admin/users" element={<UserManagement />} />
             <Route path="/admin/workers" element={<WorkerManagement />} />
             <Route path="/admin/homeowners" element={<HomeOwnerManagement />} />
+            <Route path="/admin/bookings" element={<BookingManagement />} />
             <Route path="/admin/subscriptions" element={<SubscriptionManagement />} />
             <Route path="/admin/payments" element={<PaymentManagement />} />
             <Route path="/admin/locations" element={<LocationManagement />} />
+            <Route path="/admin/services" element={<ServiceCategoryManagement />} />
+            <Route path="/admin/reviews" element={<ReviewManagement />} />
             <Route path="/admin/complaints" element={<ComplaintManagement />} />
             <Route path="/admin/notifications" element={<NotificationManagement />} />
+            <Route path="/admin/roles-permissions" element={<RolesPermissionsManagement />} />
+            <Route path="/admin/backup-retention" element={<BackupRetentionManagement />} />
             <Route path="/admin/settings" element={<SystemSettings />} />
           </Route>
         </Route>

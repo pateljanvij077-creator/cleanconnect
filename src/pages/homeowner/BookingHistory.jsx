@@ -39,7 +39,7 @@ export default function BookingHistory() {
       await createNotification(
         booking.workers.user_id,
         'Booking Cancelled',
-        `${homeowner.full_name} has cancelled the booking for ${formatDate(booking.booking_date)}`,
+        `${homeowner.full_name} has cancelled the booking for ${formatDate(booking.service_date)}`,
         'booking',
         { bookingId: booking.id }
       )
@@ -118,7 +118,7 @@ export default function BookingHistory() {
                 <div style={{ flex: 1, minWidth: '200px' }}>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{b.workers?.full_name}</h3>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    {formatDate(b.booking_date)} at {formatTime(b.booking_time)}
+                    {formatDate(b.service_date)} at {formatTime(b.service_time)}
                   </p>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Payment: <span style={{ textTransform: 'capitalize' }}>{b.payment_method}</span> ({b.payment_status})

@@ -59,13 +59,13 @@ export async function createHomeownerProfile(userId, roleId, profileData) {
   // 1. Update general users table
   const { error: userError } = await supabase
     .from('users')
-    .update({
+    .upsert({
+      id: userId,
       role_id: roleId,
       full_name: profileData.fullName,
       phone: profileData.phone,
       email: profileData.email || null,
     })
-    .eq('id', userId)
   
   if (userError) throw userError
 
@@ -98,13 +98,13 @@ export async function createWorkerProfile(userId, roleId, profileData) {
   // 1. Update general users table
   const { error: userError } = await supabase
     .from('users')
-    .update({
+    .upsert({
+      id: userId,
       role_id: roleId,
       full_name: profileData.fullName,
       phone: profileData.phone,
       email: profileData.email || null,
     })
-    .eq('id', userId)
   
   if (userError) throw userError
 

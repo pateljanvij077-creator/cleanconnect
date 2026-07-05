@@ -24,7 +24,25 @@ export default function DocumentUpload() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!aadhaarFile && !panFile) {
-      toast.error('Please upload at least Aadhaar Card or PAN Card')
+      toast.error('Please upload at least one document: Aadhaar Card or PAN Card')
+      return
+    }
+
+    if (aadhaarFile && (!aadhaarNo || aadhaarNo.length !== 12)) {
+      toast.error('Please enter a valid 12-digit Aadhaar Card number')
+      return
+    }
+    if (aadhaarNo && !aadhaarFile) {
+      toast.error('Please choose the Aadhaar Card image to upload')
+      return
+    }
+
+    if (panFile && (!panNo || panNo.length !== 10)) {
+      toast.error('Please enter a valid 10-digit PAN Card number')
+      return
+    }
+    if (panNo && !panFile) {
+      toast.error('Please choose the PAN Card image to upload')
       return
     }
 
@@ -40,18 +58,12 @@ export default function DocumentUpload() {
       if (!workerProfile) throw new Error('Worker profile not found')
 
       // Upload Aadhaar if present
-      if (aadhaarFile) {
-        if (!aadhaarNo || aadhaarNo.length !== 12) {
-          throw new Error('Please enter valid 12-digit Aadhaar Card number')
-        }
+      if (aadhaarFile && aadhaarNo) {
         await uploadWorkerDocument(workerProfile.id, aadhaarFile, 'aadhaar')
       }
 
       // Upload PAN if present
-      if (panFile) {
-        if (!panNo || panNo.length !== 10) {
-          throw new Error('Please enter valid 10-digit PAN Card number')
-        }
+      if (panFile && panNo) {
         await uploadWorkerDocument(workerProfile.id, panFile, 'pan')
       }
 
@@ -100,7 +112,9 @@ export default function DocumentUpload() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Aadhaar Upload */}
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Aadhaar Card Number (12 digits)</label>
+            <label className="form-label">
+              Aadhaar Card Number (12 digits) {panFile || panNo ? <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional)</span> : ''}
+            </label>
             <input 
               type="text" 
               maxLength={12}
@@ -130,7 +144,9 @@ export default function DocumentUpload() {
 
           {/* PAN Upload */}
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">PAN Card Number (10 alphanumeric)</label>
+            <label className="form-label">
+              PAN Card Number (10 alphanumeric) {aadhaarFile || aadhaarNo ? <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional)</span> : ''}
+            </label>
             <input 
               type="text" 
               maxLength={10}

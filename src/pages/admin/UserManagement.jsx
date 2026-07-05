@@ -7,15 +7,29 @@ import { toast } from 'react-hot-toast'
 
 export default function UserManagement() {
   const [users, setUsers] = useState([])
+  const [roles, setRoles] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
   useEffect(() => {
-    supabase
-      .from('users')
-      .select('*, roles(name)')
-      .then(({ data }) => setUsers(data || []))
-      .finally(() => setLoading(false))
+    const loadData = async () => {
+      try {
+        const { data: usersData } = await supabase
+          .from('users')
+          .select('*, roles(*)')
+        setUsers(usersData || [])
+
+        const { data: rolesData } = await supabase
+          .from('roles')
+          .select('*')
+        setRoles(rolesData || [])
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
   }, [])
 
   const handleStatusUpdate = async (userId, updateFields) => {
@@ -31,6 +45,55 @@ export default function UserManagement() {
       toast.success('User privileges updated successfully!')
     } catch (err) {
       toast.error('Failed to modify user status')
+    }
+  }
+
+  const handleRoleUpdate = async (userId, roleId) => {
+    const targetUser = users.find(u => u.id === userId)
+    if (!targetUser) return
+
+    const targetRole = roles.find(r => r.id === roleId)
+    if (!targetRole) return
+
+    const reason = window.prompt(`Enter reason for updating role of "${targetUser.full_name}" (Security Audit Confirmation):`)
+    if (reason === null) return // Admin cancelled prompt
+    
+    if (!reason.trim()) {
+      toast.error('A security confirmation reason is required to modify user roles.')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ role_id: roleId })
+        .eq('id', userId)
+
+      if (error) throw error
+
+      // Log activity
+      const { data: { user: adminUser } } = await supabase.auth.getUser()
+      if (adminUser) {
+        await supabase
+          .from('activity_logs')
+          .insert([{
+            user_id: adminUser.id,
+            action: 'UPDATE_ROLE',
+            entity_type: 'user',
+            entity_id: userId,
+            metadata: {
+              reason: reason.trim(),
+              old_role: targetUser.roles?.name || 'none',
+              new_role: targetRole?.name || 'none',
+              user_name: targetUser.full_name
+            }
+          }])
+      }
+
+      setUsers(users.map(u => u.id === userId ? { ...u, role_id: roleId, roles: targetRole } : u))
+      toast.success('User role updated successfully!')
+    } catch (err) {
+      toast.error('Failed to update user role')
     }
   }
 
@@ -91,8 +154,29 @@ export default function UserManagement() {
                         <div>{u.phone}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{u.email || 'No email'}</div>
                       </td>
-                      <td style={{ padding: '10px', textTransform: 'uppercase', fontWeight: 700, fontSize: '11px' }}>
-                        {u.roles?.name}
+                      <td style={{ padding: '10px' }}>
+                        <select 
+                          value={u.role_id || ''} 
+                          onChange={(e) => handleRoleUpdate(u.id, e.target.value)}
+                          className="form-input"
+                          style={{ 
+                            fontSize: '11px', 
+                            fontWeight: 700, 
+                            textTransform: 'uppercase', 
+                            padding: '4px 8px', 
+                            height: 'auto', 
+                            width: 'auto',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid var(--border-glass)',
+                            color: 'var(--text-primary)'
+                          }}
+                        >
+                          {roles.map(r => (
+                            <option key={r.id} value={r.id} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+                              {r.name}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td style={{ padding: '10px' }}>
                         {u.is_banned ? (

@@ -3,6 +3,8 @@ import { Phone, Star, MessageCircle, Heart, User, CheckCircle2, ShieldAlert } fr
 import { formatCurrency, getStatusClass } from '../../utils/helpers'
 import { formatDistance } from '../../utils/gps'
 
+import { motion } from 'framer-motion'
+
 export default function WorkerCard({
   worker,
   distance,
@@ -48,9 +50,13 @@ export default function WorkerCard({
   }
 
   return (
-    <div 
+    <motion.div 
       className="card glass card-hover" 
       onClick={() => onViewProfile(id)}
+      whileHover={{ y: -4 }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2 }}
       style={{ 
         display: 'flex', 
         flexDirection: 'column', 
@@ -223,6 +229,6 @@ export default function WorkerCard({
           </button>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }

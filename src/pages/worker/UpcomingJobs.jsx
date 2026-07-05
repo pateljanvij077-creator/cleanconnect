@@ -90,7 +90,7 @@ export default function UpcomingJobs() {
                   <div>
                     <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{j.homeowners?.full_name}</h3>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Schedule: {formatDate(j.booking_date)} at {formatTime(j.booking_time)}
+                      Schedule: {formatDate(j.service_date)} at {formatTime(j.service_time)}
                     </p>
                     <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                       📍 <strong>Address:</strong> {j.address}

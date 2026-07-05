@@ -146,9 +146,14 @@ export default function WorkerManagement() {
                         <span style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '11px', color: 'var(--primary)' }}>
                           {doc.doc_type} CARD
                         </span>
-                        <a href={doc.doc_url} target="_blank" rel="noreferrer" style={{ fontSize: '12px', fontWeight: 600 }}>
+                        <button 
+                          type="button"
+                          onClick={() => window.open(doc.doc_url, '_blank')} 
+                          className="btn btn-ghost"
+                          style={{ fontSize: '12px', fontWeight: 600, padding: 0 }}
+                        >
                           View Original Image
-                        </a>
+                        </button>
                       </div>
                       <img 
                         src={doc.doc_url} 

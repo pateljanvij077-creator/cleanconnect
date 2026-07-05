@@ -189,7 +189,7 @@ export default function EditProfile() {
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', gap: '4px' }}>
                   <FileUp size={14} /> Upload Avatar
-                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setAvatarFile(e.target.files[0])} />
+                  <input type="file" accept="image/*" capture="user" style={{ display: 'none' }} onChange={e => setAvatarFile(e.target.files[0])} />
                 </label>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                   {avatarFile ? avatarFile.name : 'No file chosen'}

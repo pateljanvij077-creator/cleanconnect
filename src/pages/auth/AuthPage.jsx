@@ -21,7 +21,11 @@ export default function AuthPage() {
 
     setLoading(true)
     try {
-      const data = await signIn(email, password)
+      let authEmail = email
+      if (!email.includes('@')) {
+        authEmail = `${email}@cleanconnect.com`
+      }
+      const data = await signIn(authEmail, password)
       toast.success('Logged in successfully!')
       
       const profile = await getUserProfile(data.user.id)
@@ -84,7 +88,7 @@ export default function AuthPage() {
         {/* Login Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Email Address</label>
+            <label className="form-label">Email Address or Phone Number</label>
             <div style={{ position: 'relative' }}>
               <Mail 
                 size={18} 
@@ -92,11 +96,11 @@ export default function AuthPage() {
                 style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} 
               />
               <input 
-                type="email" 
+                type="text" 
                 className="form-input" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder="you@example.com or 9876543210"
                 style={{ paddingLeft: '2.5rem' }}
                 required
               />

@@ -4,8 +4,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Sparkles, MapPin, Search } from 'lucide-react'
 import { homeownerSignupSchema } from '../../utils/validators'
-import { signUp, createHomeownerProfile, getRoles } from '../../services/auth'
-import { getStates, getCities, getAreas, searchSocieties, findOrCreateSociety } from '../../services/locations'
+import { signUp, signIn, createHomeownerProfile, getRoles } from '../../services/auth'
+import { getStates, getCities, getAreas, searchSocieties, findOrCreateSociety, findOrCreateState, findOrCreateCity, findOrCreateArea } from '../../services/locations'
 import LocationPicker from '../../components/maps/LocationPicker'
 import { toast } from 'react-hot-toast'
 
@@ -20,6 +20,10 @@ export default function HomeOwnerSignup() {
   const [areasList, setAreasList] = useState([])
   const [societiesList, setSocietiesList] = useState([])
   const [selectedSocietyId, setSelectedSocietyId] = useState(null)
+  
+  const [showStateSuggestions, setShowStateSuggestions] = useState(false)
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false)
+  const [showAreaSuggestions, setShowAreaSuggestions] = useState(false)
   const [showSocietySuggestions, setShowSocietySuggestions] = useState(false)
 
   const {
@@ -49,9 +53,9 @@ export default function HomeOwnerSignup() {
   })
 
   // Watch state, city, area to fetch lists dynamically
-  const selectedState = watch('state')
-  const selectedCity = watch('city')
-  const selectedArea = watch('area')
+  const typedState = watch('state')
+  const typedCity = watch('city')
+  const typedArea = watch('area')
   const typedSocietyName = watch('societyName')
   const pinLat = watch('latitude')
   const pinLng = watch('longitude')
@@ -61,33 +65,39 @@ export default function HomeOwnerSignup() {
     getStates().then(setStatesList).catch(err => console.error('Error fetching states:', err))
   }, [])
 
-  // Load Cities when state changes
+  // Load Cities when state matches
   useEffect(() => {
-    if (selectedState) {
-      getCities(selectedState).then(setCitiesList)
-      setValue('city', '')
-      setValue('area', '')
+    const st = statesList.find(s => s.name.toLowerCase() === (typedState || '').toLowerCase())
+    if (st) {
+      getCities(st.id).then(setCitiesList)
+    } else {
+      setCitiesList([])
     }
-  }, [selectedState, setValue])
+  }, [typedState, statesList])
 
-  // Load Areas when city changes
+  // Load Areas when city matches
   useEffect(() => {
-    if (selectedCity) {
-      getAreas(selectedCity).then(setAreasList)
-      setValue('area', '')
+    const ct = citiesList.find(c => c.name.toLowerCase() === (typedCity || '').toLowerCase())
+    if (ct) {
+      getAreas(ct.id).then(setAreasList)
+    } else {
+      setAreasList([])
     }
-  }, [selectedCity, setValue])
+  }, [typedCity, citiesList])
 
   // Smart Society Database Search Autocomplete
   useEffect(() => {
+    const matchedCity = citiesList.find(c => c.name.toLowerCase() === (typedCity || '').toLowerCase())
+    const cityId = matchedCity ? matchedCity.id : null
+
     if (typedSocietyName && typedSocietyName.length >= 2) {
-      searchSocieties(typedSocietyName, selectedCity || null).then(setSocietiesList)
+      searchSocieties(typedSocietyName, cityId).then(setSocietiesList)
       setShowSocietySuggestions(true)
     } else {
       setSocietiesList([])
       setShowSocietySuggestions(false)
     }
-  }, [typedSocietyName, selectedCity])
+  }, [typedSocietyName, typedCity, citiesList])
 
   const selectSociety = (soc) => {
     setValue('societyName', soc.name)
@@ -108,8 +118,10 @@ export default function HomeOwnerSignup() {
     // Parse Nominatim details if available to auto-fill location fields
     const addr = coords.rawGeoData?.address || {}
     if (addr.state) {
-      const matchState = statesList.find(s => s.name.toLowerCase().includes(addr.state.toLowerCase()))
-      if (matchState) setValue('state', matchState.id)
+      setValue('state', addr.state)
+    }
+    if (addr.city || addr.town || addr.village) {
+      setValue('city', addr.city || addr.town || addr.village)
     }
     
     // Suggest society name from reverse geocode
@@ -147,16 +159,44 @@ export default function HomeOwnerSignup() {
       const authEmail = data.email || `${data.phone}@cleanconnect.com`
 
       // 2. Sign up Auth User
-      const authResult = await signUp(authEmail, data.password, data.fullName)
-      const userId = authResult.user.id
+      let userId;
+      try {
+        const authResult = await signUp(authEmail, data.password, data.fullName)
+        userId = authResult.user.id
+      } catch (err) {
+        if (err.message && err.message.toLowerCase().includes('already registered')) {
+          // If the user already exists (likely from a previous failed registration attempt),
+          // try to sign them in with the provided credentials to continue profile creation.
+          const authResult = await signIn(authEmail, data.password)
+          userId = authResult.user.id
+        } else {
+          throw err
+        }
+      }
 
-      // 3. Find or Create Smart Society entry
+      // 3. Find or Create Smart Location hierarchy
+      let finalStateId = null
+      let finalCityId = null
+      let finalAreaId = null
+      
+      const matchedState = statesList.find(s => s.name.toLowerCase() === data.state.toLowerCase())
+      if (matchedState) finalStateId = matchedState.id
+      else { const st = await findOrCreateState(data.state); finalStateId = st.id; }
+
+      const matchedCity = citiesList.find(c => c.name.toLowerCase() === data.city.toLowerCase())
+      if (matchedCity) finalCityId = matchedCity.id
+      else { const ct = await findOrCreateCity(data.city, finalStateId); finalCityId = ct.id; }
+
+      const matchedArea = areasList.find(a => a.name.toLowerCase() === data.area.toLowerCase())
+      if (matchedArea) finalAreaId = matchedArea.id
+      else { const ar = await findOrCreateArea(data.area, finalCityId); finalAreaId = ar.id; }
+
       let finalSocietyId = selectedSocietyId
       if (!finalSocietyId && data.societyName) {
         const createdSoc = await findOrCreateSociety({
           name: data.societyName,
-          areaId: data.area || null,
-          cityId: data.city || null,
+          areaId: finalAreaId,
+          cityId: finalCityId,
           latitude: data.latitude,
           longitude: data.longitude,
           address: data.address
@@ -169,9 +209,9 @@ export default function HomeOwnerSignup() {
         fullName: data.fullName,
         email: data.email,
         phone: data.phone,
-        stateId: data.state,
-        cityId: data.city,
-        areaId: data.area,
+        stateId: finalStateId,
+        cityId: finalCityId,
+        areaId: finalAreaId,
         societyId: finalSocietyId,
         societyName: data.societyName,
         houseNumber: data.houseNumber,
@@ -247,30 +287,51 @@ export default function HomeOwnerSignup() {
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div className="grid-3">
-                <div className="form-group" style={{ margin: 0 }}>
+                <div className="form-group" style={{ margin: 0, position: 'relative' }}>
                   <label className="form-label">State</label>
-                  <select className="form-select" {...register('state')}>
-                    <option value="">Select State</option>
-                    {statesList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+                  <input type="text" className="form-input" placeholder="Type State" autoComplete="off"
+                    {...register('state', { onBlur: () => setTimeout(() => setShowStateSuggestions(false), 200) })}
+                    onFocus={() => setShowStateSuggestions(true)}
+                  />
+                  {showStateSuggestions && statesList.filter(s => s.name.toLowerCase().includes((watch('state')||'').toLowerCase())).length > 0 && (
+                    <ul className="glass" style={{ position: 'absolute', top: '100%', left: 0, right: 0, borderRadius: 'var(--radius-sm)', listStyle: 'none', padding: '4px', maxHeight: '160px', overflowY: 'auto', zIndex: 10, marginTop: '4px' }}>
+                      {statesList.filter(s => s.name.toLowerCase().includes((watch('state')||'').toLowerCase())).map(st => (
+                        <li key={st.id} onClick={() => { setValue('state', st.name); setShowStateSuggestions(false) }} style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px' }} className="glass-hover">{st.name}</li>
+                      ))}
+                    </ul>
+                  )}
                   {errors.state && <span className="form-error">{errors.state.message}</span>}
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
+                <div className="form-group" style={{ margin: 0, position: 'relative' }}>
                   <label className="form-label">City</label>
-                  <select className="form-select" {...register('city')} disabled={!selectedState}>
-                    <option value="">Select City</option>
-                    {citiesList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <input type="text" className="form-input" placeholder="Type City" autoComplete="off"
+                    {...register('city', { onBlur: () => setTimeout(() => setShowCitySuggestions(false), 200) })}
+                    onFocus={() => setShowCitySuggestions(true)}
+                  />
+                  {showCitySuggestions && citiesList.filter(c => c.name.toLowerCase().includes((watch('city')||'').toLowerCase())).length > 0 && (
+                    <ul className="glass" style={{ position: 'absolute', top: '100%', left: 0, right: 0, borderRadius: 'var(--radius-sm)', listStyle: 'none', padding: '4px', maxHeight: '160px', overflowY: 'auto', zIndex: 10, marginTop: '4px' }}>
+                      {citiesList.filter(c => c.name.toLowerCase().includes((watch('city')||'').toLowerCase())).map(ct => (
+                        <li key={ct.id} onClick={() => { setValue('city', ct.name); setShowCitySuggestions(false) }} style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px' }} className="glass-hover">{ct.name}</li>
+                      ))}
+                    </ul>
+                  )}
                   {errors.city && <span className="form-error">{errors.city.message}</span>}
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
+                <div className="form-group" style={{ margin: 0, position: 'relative' }}>
                   <label className="form-label">Local Area</label>
-                  <select className="form-select" {...register('area')} disabled={!selectedCity}>
-                    <option value="">Select Area</option>
-                    {areasList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <input type="text" className="form-input" placeholder="Type Area" autoComplete="off"
+                    {...register('area', { onBlur: () => setTimeout(() => setShowAreaSuggestions(false), 200) })}
+                    onFocus={() => setShowAreaSuggestions(true)}
+                  />
+                  {showAreaSuggestions && areasList.filter(a => a.name.toLowerCase().includes((watch('area')||'').toLowerCase())).length > 0 && (
+                    <ul className="glass" style={{ position: 'absolute', top: '100%', left: 0, right: 0, borderRadius: 'var(--radius-sm)', listStyle: 'none', padding: '4px', maxHeight: '160px', overflowY: 'auto', zIndex: 10, marginTop: '4px' }}>
+                      {areasList.filter(a => a.name.toLowerCase().includes((watch('area')||'').toLowerCase())).map(ar => (
+                        <li key={ar.id} onClick={() => { setValue('area', ar.name); setShowAreaSuggestions(false) }} style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px' }} className="glass-hover">{ar.name}</li>
+                      ))}
+                    </ul>
+                  )}
                   {errors.area && <span className="form-error">{errors.area.message}</span>}
                 </div>
               </div>
@@ -283,8 +344,11 @@ export default function HomeOwnerSignup() {
                     type="text" 
                     className="form-input" 
                     placeholder="Type Society..." 
-                    {...register('societyName')} 
+                    {...register('societyName', {
+                      onBlur: () => setTimeout(() => setShowSocietySuggestions(false), 200)
+                    })} 
                     autoComplete="off"
+                    onFocus={() => { if (societiesList.length > 0) setShowSocietySuggestions(true) }}
                   />
                   <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                 </div>

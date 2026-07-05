@@ -101,7 +101,7 @@ export default function BookingScreen() {
 
       // 2. Alert worker via in-app notifications system
       await createNotification(
-        worker.id,
+        worker.user_id,
         'New Booking Request!',
         `${homeowner.full_name} requested your service ${isImmediate ? 'RIGHT NOW' : `on ${finalDate} at ${finalTime}`}`,
         'booking',

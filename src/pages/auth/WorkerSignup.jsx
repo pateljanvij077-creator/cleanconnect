@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Sparkles, MapPin, Plus, Trash2 } from 'lucide-react'
+import { Sparkles, MapPin, Plus, Trash2, Search } from 'lucide-react'
 import { workerSignupSchema } from '../../utils/validators'
-import { signUp, createWorkerProfile, getRoles } from '../../services/auth'
-import { getStates, getCities, getAreas, searchSocieties } from '../../services/locations'
+import { signUp, signIn, createWorkerProfile, getRoles } from '../../services/auth'
+import { getStates, getCities, getAreas, searchSocieties, findOrCreateState, findOrCreateCity, findOrCreateArea, findOrCreateSociety } from '../../services/locations'
+import LocationPicker from '../../components/maps/LocationPicker'
 import { toast } from 'react-hot-toast'
 
 export default function WorkerSignup() {
@@ -18,11 +19,18 @@ export default function WorkerSignup() {
   const [citiesList, setCitiesList] = useState([])
   const [areasList, setAreasList] = useState([])
   
+  const [showStateSuggestions, setShowStateSuggestions] = useState(false)
+  const [showCitySuggestions, setShowCitySuggestions] = useState(false)
+  const [showAreaSuggestions, setShowAreaSuggestions] = useState(false)
+  const [showSocietySuggestions, setShowSocietySuggestions] = useState(false)
+  const [societiesList, setSocietiesList] = useState([])
+  
   // Work Locations adding system
   const [locations, setLocations] = useState([])
   const [currentLoc, setCurrentLoc] = useState({
     stateId: '', cityId: '', areaId: '', societyId: '',
-    stateName: '', cityName: '', areaName: '', societyName: ''
+    stateName: '', cityName: '', areaName: '', societyName: '',
+    latitude: undefined, longitude: undefined, address: ''
   })
 
   const {
@@ -63,46 +71,103 @@ export default function WorkerSignup() {
 
   // Load cities when current location state selection changes
   useEffect(() => {
-    if (currentLoc.stateId) {
-      getCities(currentLoc.stateId).then(setCitiesList)
+    const st = statesList.find(s => s.name.toLowerCase() === (currentLoc.stateName || '').toLowerCase())
+    if (st) {
+      getCities(st.id).then(setCitiesList)
+    } else {
+      setCitiesList([])
     }
-  }, [currentLoc.stateId])
+  }, [currentLoc.stateName, statesList])
 
   // Load areas when city changes
   useEffect(() => {
-    if (currentLoc.cityId) {
-      getAreas(currentLoc.cityId).then(setAreasList)
+    const ct = citiesList.find(c => c.name.toLowerCase() === (currentLoc.cityName || '').toLowerCase())
+    if (ct) {
+      getAreas(ct.id).then(setAreasList)
+    } else {
+      setAreasList([])
     }
-  }, [currentLoc.cityId])
+  }, [currentLoc.cityName, citiesList])
 
-  const addLocationRow = () => {
-    if (!currentLoc.stateId || !currentLoc.cityId || !currentLoc.areaId) {
-      toast.error('Select State, City and Area to add location')
+  // Smart Society Database Search Autocomplete
+  useEffect(() => {
+    const matchedCity = citiesList.find(c => c.name.toLowerCase() === (currentLoc.cityName || '').toLowerCase())
+    const cityId = matchedCity ? matchedCity.id : null
+
+    if (currentLoc.societyName && currentLoc.societyName.length >= 2 && showSocietySuggestions) {
+      searchSocieties(currentLoc.societyName, cityId).then(setSocietiesList)
+    } else {
+      setSocietiesList([])
+    }
+  }, [currentLoc.societyName, currentLoc.cityName, citiesList, showSocietySuggestions])
+
+  const selectSociety = (soc) => {
+    setCurrentLoc({
+      ...currentLoc,
+      societyName: soc.name,
+      societyId: soc.id,
+      latitude: soc.latitude || currentLoc.latitude,
+      longitude: soc.longitude || currentLoc.longitude
+    })
+    setShowSocietySuggestions(false)
+    toast.success(`Society "${soc.name}" selected!`)
+  }
+
+  const addLocationRow = async () => {
+    if (!currentLoc.stateName || !currentLoc.cityName || !currentLoc.areaName) {
+      toast.error('Type State, City and Area to add location')
       return
     }
 
-    const stateObj = statesList.find(s => s.id === currentLoc.stateId)
-    const cityObj = citiesList.find(c => c.id === currentLoc.cityId)
-    const areaObj = areasList.find(a => a.id === currentLoc.areaId)
-
     const newLoc = {
-      stateId: currentLoc.stateId,
-      cityId: currentLoc.cityId,
-      areaId: currentLoc.areaId,
-      societyId: currentLoc.societyId || null,
-      stateName: stateObj?.name || '',
-      cityName: cityObj?.name || '',
-      areaName: areaObj?.name || '',
-      societyName: currentLoc.societyName || 'All Societies'
+      stateName: currentLoc.stateName,
+      cityName: currentLoc.cityName,
+      areaName: currentLoc.areaName,
+      societyName: currentLoc.societyName || 'All Societies',
+      latitude: currentLoc.latitude,
+      longitude: currentLoc.longitude,
+      address: currentLoc.address,
+      societyId: currentLoc.societyId // in case selected from autocomplete
     }
 
     setLocations([...locations, newLoc])
-    // Reset location adding state
+      // Reset location adding state
+      setCurrentLoc({
+        stateId: '', cityId: '', areaId: '', societyId: '',
+        stateName: '', cityName: '', areaName: '', societyName: '',
+        latitude: undefined, longitude: undefined, address: ''
+      })
+      toast.success('Work Location added!')
+  }
+
+  const handleLocationPin = (coords) => {
+    // Parse Nominatim details if available to auto-fill location fields
+    const addr = coords.rawGeoData?.address || {}
+    let stateName = currentLoc.stateName
+    let cityName = currentLoc.cityName
+    let societyName = currentLoc.societyName
+
+    if (addr.state) stateName = addr.state
+    if (addr.city || addr.town || addr.village) cityName = (addr.city || addr.town || addr.village)
+    
+    // Suggest society name from reverse geocode
+    const parsedSociety = addr.neighbourhood || addr.suburb || addr.residential || ''
+    if (parsedSociety) societyName = parsedSociety
+    
+    // We can also extract area from suburb if needed, but often suburb is area
+    let areaName = currentLoc.areaName
+    if (addr.suburb && !parsedSociety) areaName = addr.suburb
+
     setCurrentLoc({
-      stateId: '', cityId: '', areaId: '', societyId: '',
-      stateName: '', cityName: '', areaName: '', societyName: ''
+      ...currentLoc,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      address: coords.address,
+      stateName,
+      cityName,
+      areaName,
+      societyName
     })
-    toast.success('Work Location added!')
   }
 
   const removeLocationRow = (index) => {
@@ -159,13 +224,67 @@ export default function WorkerSignup() {
       const authEmail = data.email || `${data.phone}@cleanconnect.com`
 
       // 2. Sign up Auth User
-      const authResult = await signUp(authEmail, data.password, data.fullName)
-      const userId = authResult.user.id
+      let userId;
+      try {
+        const authResult = await signUp(authEmail, data.password, data.fullName)
+        userId = authResult.user.id
+      } catch (err) {
+        if (err.message && err.message.toLowerCase().includes('already registered')) {
+          const authResult = await signIn(authEmail, data.password)
+          userId = authResult.user.id
+        } else {
+          throw err
+        }
+      }
 
-      // 3. Create Worker Profile with primary locations list
+      // 3. Find or Create Smart Location hierarchy
+      const resolvedLocations = []
+      for (const loc of locations) {
+        let finalStateId = null
+        let finalCityId = null
+        let finalAreaId = null
+        
+        const matchedState = statesList.find(s => s.name.toLowerCase() === loc.stateName.toLowerCase())
+        if (matchedState) finalStateId = matchedState.id
+        else { const st = await findOrCreateState(loc.stateName); finalStateId = st.id; }
+
+        const matchedCity = citiesList.find(c => c.name.toLowerCase() === loc.cityName.toLowerCase())
+        if (matchedCity) finalCityId = matchedCity.id
+        else { const ct = await findOrCreateCity(loc.cityName, finalStateId); finalCityId = ct.id; }
+
+        const matchedArea = areasList.find(a => a.name.toLowerCase() === loc.areaName.toLowerCase())
+        if (matchedArea) finalAreaId = matchedArea.id
+        else { const ar = await findOrCreateArea(loc.areaName, finalCityId); finalAreaId = ar.id; }
+
+        let finalSocietyId = loc.societyId || null
+        if (!finalSocietyId && loc.societyName && loc.societyName !== 'All Societies') {
+          const createdSoc = await findOrCreateSociety({
+            name: loc.societyName,
+            areaId: finalAreaId,
+            cityId: finalCityId,
+            latitude: loc.latitude || undefined,
+            longitude: loc.longitude || undefined,
+            address: loc.address || ''
+          })
+          finalSocietyId = createdSoc.id
+        }
+
+        resolvedLocations.push({
+          stateId: finalStateId,
+          cityId: finalCityId,
+          areaId: finalAreaId,
+          societyId: finalSocietyId,
+          stateName: loc.stateName,
+          cityName: loc.cityName,
+          areaName: loc.areaName,
+          societyName: loc.societyName
+        })
+      }
+
+      // 4. Create Worker Profile with primary locations list
       await createWorkerProfile(userId, workerRole.id, {
         ...data,
-        locations
+        locations: resolvedLocations
       })
 
       // Store worker profile credentials locally before proceeding to doc uploads
@@ -342,56 +461,97 @@ export default function WorkerSignup() {
               </p>
 
               {/* Selector Row */}
-              <div className="grid-3" style={{ background: 'var(--bg-secondary)', padding: '1rem', borderRadius: 'var(--radius-sm)' }}>
-                <div className="form-group" style={{ margin: 0 }}>
+              <div className="grid-3">
+                <div className="form-group" style={{ margin: 0, position: 'relative' }}>
                   <label className="form-label">State</label>
-                  <select 
-                    className="form-select"
-                    value={currentLoc.stateId}
-                    onChange={(e) => setCurrentLoc({ ...currentLoc, stateId: e.target.value })}
-                  >
-                    <option value="">Select State</option>
-                    {statesList.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+                  <input type="text" className="form-input" placeholder="Type State" autoComplete="off"
+                    value={currentLoc.stateName}
+                    onChange={(e) => setCurrentLoc({ ...currentLoc, stateName: e.target.value })}
+                    onFocus={() => setShowStateSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowStateSuggestions(false), 200)}
+                  />
+                  {showStateSuggestions && statesList.filter(s => s.name.toLowerCase().includes((currentLoc.stateName||'').toLowerCase())).length > 0 && (
+                    <ul className="glass" style={{ position: 'absolute', top: '100%', left: 0, right: 0, borderRadius: 'var(--radius-sm)', listStyle: 'none', padding: '4px', maxHeight: '160px', overflowY: 'auto', zIndex: 10, marginTop: '4px' }}>
+                      {statesList.filter(s => s.name.toLowerCase().includes((currentLoc.stateName||'').toLowerCase())).map(st => (
+                        <li key={st.id} onClick={() => { setCurrentLoc({ ...currentLoc, stateName: st.name }); setShowStateSuggestions(false) }} style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px' }} className="glass-hover">{st.name}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
+                <div className="form-group" style={{ margin: 0, position: 'relative' }}>
                   <label className="form-label">City</label>
-                  <select 
-                    className="form-select"
-                    value={currentLoc.cityId}
-                    disabled={!currentLoc.stateId}
-                    onChange={(e) => setCurrentLoc({ ...currentLoc, cityId: e.target.value })}
-                  >
-                    <option value="">Select City</option>
-                    {citiesList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <input type="text" className="form-input" placeholder="Type City" autoComplete="off"
+                    value={currentLoc.cityName}
+                    onChange={(e) => setCurrentLoc({ ...currentLoc, cityName: e.target.value })}
+                    onFocus={() => setShowCitySuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowCitySuggestions(false), 200)}
+                  />
+                  {showCitySuggestions && citiesList.filter(c => c.name.toLowerCase().includes((currentLoc.cityName||'').toLowerCase())).length > 0 && (
+                    <ul className="glass" style={{ position: 'absolute', top: '100%', left: 0, right: 0, borderRadius: 'var(--radius-sm)', listStyle: 'none', padding: '4px', maxHeight: '160px', overflowY: 'auto', zIndex: 10, marginTop: '4px' }}>
+                      {citiesList.filter(c => c.name.toLowerCase().includes((currentLoc.cityName||'').toLowerCase())).map(ct => (
+                        <li key={ct.id} onClick={() => { setCurrentLoc({ ...currentLoc, cityName: ct.name }); setShowCitySuggestions(false) }} style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px' }} className="glass-hover">{ct.name}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
-                <div className="form-group" style={{ margin: 0 }}>
+                <div className="form-group" style={{ margin: 0, position: 'relative' }}>
                   <label className="form-label">Area</label>
-                  <select 
-                    className="form-select"
-                    value={currentLoc.areaId}
-                    disabled={!currentLoc.cityId}
-                    onChange={(e) => setCurrentLoc({ ...currentLoc, areaId: e.target.value })}
-                  >
-                    <option value="">Select Area</option>
-                    {areasList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <input type="text" className="form-input" placeholder="Type Area" autoComplete="off"
+                    value={currentLoc.areaName}
+                    onChange={(e) => setCurrentLoc({ ...currentLoc, areaName: e.target.value })}
+                    onFocus={() => setShowAreaSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowAreaSuggestions(false), 200)}
+                  />
+                  {showAreaSuggestions && areasList.filter(a => a.name.toLowerCase().includes((currentLoc.areaName||'').toLowerCase())).length > 0 && (
+                    <ul className="glass" style={{ position: 'absolute', top: '100%', left: 0, right: 0, borderRadius: 'var(--radius-sm)', listStyle: 'none', padding: '4px', maxHeight: '160px', overflowY: 'auto', zIndex: 10, marginTop: '4px' }}>
+                      {areasList.filter(a => a.name.toLowerCase().includes((currentLoc.areaName||'').toLowerCase())).map(ar => (
+                        <li key={ar.id} onClick={() => { setCurrentLoc({ ...currentLoc, areaName: ar.name }); setShowAreaSuggestions(false) }} style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px' }} className="glass-hover">{ar.name}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
-                <div className="form-group" style={{ margin: 0, flex: 1 }}>
+                <div className="form-group" style={{ margin: 0, flex: 1, position: 'relative' }}>
                   <label className="form-label">Society Name (Optional - leave blank for all areas)</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. Green Park Residency"
-                    value={currentLoc.societyName}
-                    onChange={(e) => setCurrentLoc({ ...currentLoc, societyName: e.target.value })}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. Green Park Residency"
+                      value={currentLoc.societyName}
+                      onChange={(e) => {
+                        setCurrentLoc({ ...currentLoc, societyName: e.target.value })
+                        setShowSocietySuggestions(true)
+                      }}
+                      onBlur={() => setTimeout(() => setShowSocietySuggestions(false), 200)}
+                      onFocus={() => { if (societiesList.length > 0 || currentLoc.societyName?.length >= 2) setShowSocietySuggestions(true) }}
+                      autoComplete="off"
+                    />
+                    <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  </div>
+                  
+                  {showSocietySuggestions && societiesList.length > 0 && (
+                    <ul className="glass" style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0,
+                      borderRadius: 'var(--radius-sm)', listStyle: 'none', padding: '4px',
+                      maxHeight: '160px', overflowY: 'auto', zIndex: 10, marginTop: '4px'
+                    }}>
+                      {societiesList.map(soc => (
+                        <li 
+                          key={soc.id}
+                          onClick={() => selectSociety(soc)}
+                          style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '13px' }}
+                          className="glass-hover"
+                        >
+                          {soc.name} <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({soc.cities?.name || ''})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 <button 
                   type="button" 
@@ -402,6 +562,13 @@ export default function WorkerSignup() {
                   <Plus size={16} /> Add
                 </button>
               </div>
+
+              {/* Map location picker integrated with geocoding */}
+              <LocationPicker 
+                lat={currentLoc.latitude} 
+                lng={currentLoc.longitude} 
+                onLocationChange={handleLocationPin} 
+              />
 
               {/* Added Locations list table */}
               <div className="card glass" style={{ padding: '0.75rem', maxHeight: '180px', overflowY: 'auto' }}>

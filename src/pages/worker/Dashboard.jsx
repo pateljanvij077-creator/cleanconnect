@@ -61,7 +61,7 @@ export default function WorkerDashboard() {
   const getChartData = () => {
     const counts = {}
     bookings.slice(0, 10).forEach(b => {
-      const date = formatDate(b.booking_date)
+      const date = formatDate(b.service_date)
       counts[date] = (counts[date] || 0) + 1
     })
     return Object.keys(counts).map(k => ({ date: k, Bookings: counts[k] }))
@@ -170,7 +170,7 @@ export default function WorkerDashboard() {
                 <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.5rem' }}>
                   <div>
                     <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{b.homeowners?.full_name}</h4>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{formatDate(b.booking_date)} at {b.booking_time}</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{formatDate(b.service_date)} at {b.service_time}</p>
                   </div>
                   <span className={`badge ${getStatusClass(b.status)}`}>{b.status}</span>
                 </div>

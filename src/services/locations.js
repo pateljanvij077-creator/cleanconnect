@@ -82,7 +82,7 @@ export async function findOrCreateSociety({ name, areaId, cityId, latitude, long
   const { data: existing, error: checkError } = await supabase
     .from('societies')
     .select('*')
-    .eq('name', normalizedName)
+    .ilike('name', normalizedName)
     .eq('city_id', cityId)
     .maybeSingle()
 
@@ -100,6 +100,80 @@ export async function findOrCreateSociety({ name, areaId, cityId, latitude, long
       longitude,
       address
     }])
+    .select()
+    .single()
+
+  if (insertError) throw insertError
+  return created
+}
+
+/**
+ * Find or create a state
+ */
+export async function findOrCreateState(name) {
+  const normalizedName = name.trim()
+  const { data: existing, error: checkError } = await supabase
+    .from('states')
+    .select('*')
+    .ilike('name', normalizedName)
+    .maybeSingle()
+
+  if (checkError) throw checkError
+  if (existing) return existing
+
+  const { data: created, error: insertError } = await supabase
+    .from('states')
+    .insert([{ name: normalizedName }])
+    .select()
+    .single()
+
+  if (insertError) throw insertError
+  return created
+}
+
+/**
+ * Find or create a city
+ */
+export async function findOrCreateCity(name, stateId) {
+  const normalizedName = name.trim()
+  const { data: existing, error: checkError } = await supabase
+    .from('cities')
+    .select('*')
+    .ilike('name', normalizedName)
+    .eq('state_id', stateId)
+    .maybeSingle()
+
+  if (checkError) throw checkError
+  if (existing) return existing
+
+  const { data: created, error: insertError } = await supabase
+    .from('cities')
+    .insert([{ name: normalizedName, state_id: stateId }])
+    .select()
+    .single()
+
+  if (insertError) throw insertError
+  return created
+}
+
+/**
+ * Find or create an area
+ */
+export async function findOrCreateArea(name, cityId) {
+  const normalizedName = name.trim()
+  const { data: existing, error: checkError } = await supabase
+    .from('areas')
+    .select('*')
+    .ilike('name', normalizedName)
+    .eq('city_id', cityId)
+    .maybeSingle()
+
+  if (checkError) throw checkError
+  if (existing) return existing
+
+  const { data: created, error: insertError } = await supabase
+    .from('areas')
+    .insert([{ name: normalizedName, city_id: cityId }])
     .select()
     .single()
 
