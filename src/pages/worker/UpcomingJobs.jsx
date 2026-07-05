@@ -129,7 +129,7 @@ function VerificationModal({ job, codeType, onSuccess, onRequestNewCode, onClose
               inputMode="numeric"
               pattern="\d{6}"
               maxLength={6}
-              autoComplete="one-time-code"
+              autoComplete="off"
               className="form-input"
               placeholder="Enter 6-digit code"
               value={code}
@@ -201,14 +201,23 @@ export default function UpcomingJobs() {
   const handleArrived = async (job) => {
     setLoading_(job.id, true)
     try {
-      const coords = await getCurrentPosition().catch(() => null)
-      await updateBookingStatus(job.id, 'arrived', coords ? { cleaner_lat: coords.lat, cleaner_lng: coords.lng } : {})
+      // C3 fix: GPS is required for arrival so the DB can enforce the 100-metre proximity check
+      // during code verification. Surface the error and abort rather than storing null coords.
+      let coords
+      try {
+        coords = await getCurrentPosition()
+      } catch (gpsErr) {
+        toast.error('GPS location required to mark arrival. Please enable location services and try again.')
+        setLoading_(job.id, false)
+        return
+      }
+      await updateBookingStatus(job.id, 'arrived', { cleaner_lat: coords.lat, cleaner_lng: coords.lng })
       toast.success('Arrival recorded! Please get the check-in code from the homeowner.')
       // Refresh so status reflects arrived, then show modal
       await fetchJobsAndShowModal(job.id, 'start')
     } catch (err) {
       console.error(err)
-      toast.error('Failed to update status. Make sure GPS is enabled.')
+      toast.error('Failed to update status. Please try again.')
     } finally {
       setLoading_(job.id, false)
     }

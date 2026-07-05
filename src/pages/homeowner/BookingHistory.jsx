@@ -107,47 +107,64 @@ function VerificationCodeCard({ bookingId, activeCode, onRegenerate }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          background: 'rgba(0, 0, 0, 0.2)',
-          padding: '0.5rem 1rem',
-          borderRadius: '8px',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <span style={{
-            fontFamily: 'monospace',
-            fontSize: '1.5rem',
-            fontWeight: 800,
-            letterSpacing: '0.15em',
-            color: isExpired ? 'var(--text-muted)' : 'var(--primary)'
+        {isExpired ? (
+          // M1: Hide stale digits when the code has expired — show a clear prompt instead
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            background: 'rgba(239, 68, 68, 0.08)',
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            color: 'var(--danger)',
+            fontSize: '0.85rem',
+            fontWeight: 600
           }}>
-            {activeCode.code}
-          </span>
-          <button 
-            onClick={handleCopy} 
-            disabled={isExpired}
-            style={{ 
-              background: 'none', 
-              border: 'none', 
-              color: 'var(--text-secondary)', 
-              cursor: 'pointer', 
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: isExpired ? 0.5 : 1
-            }}
-            title="Copy Code"
-          >
-            {copied ? <Check size={16} color="#22c55e" /> : <Copy size={16} />}
-          </button>
-        </div>
+            Code expired — tap Regenerate to get a new one
+          </div>
+        ) : (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            background: 'rgba(0, 0, 0, 0.2)',
+            padding: '0.5rem 1rem',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 255, 255, 0.1)'
+          }}>
+            <span style={{
+              fontFamily: 'monospace',
+              fontSize: '1.5rem',
+              fontWeight: 800,
+              letterSpacing: '0.15em',
+              color: 'var(--primary)'
+            }}>
+              {activeCode.code}
+            </span>
+            <button 
+              onClick={handleCopy}
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                color: 'var(--text-secondary)', 
+                cursor: 'pointer', 
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Copy Code"
+            >
+              {copied ? <Check size={16} color="#22c55e" /> : <Copy size={16} />}
+            </button>
+          </div>
+        )}
 
         <button 
           onClick={handleRegenerateClick} 
           className="btn btn-secondary btn-sm"
+          disabled={isRegenerating}
           style={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -157,7 +174,7 @@ function VerificationCodeCard({ bookingId, activeCode, onRegenerate }) {
           }}
         >
           <RefreshCw size={14} style={{ transition: 'transform 0.5s ease' }} />
-          Regenerate Code
+          {isExpired ? 'Regenerate Code' : 'Regenerate'}
         </button>
       </div>
     </div>
@@ -296,15 +313,16 @@ export default function BookingHistory() {
         const hasValidLocalCode = localCode && localCode.type === codeType && localCode.expiry > Date.now()
         
         if (hasValidLocalCode) {
-          // I2 fix: verify the DB record still exists (cleaner may have verified, deleting it).
+          // Verify the DB record still exists (cleaner may have verified, deleting it).
           // Only skip regeneration when the DB code is confirmed to exist.
           try {
             generatingRef.current[b.id] = true
             const dbCode = await getActiveCode(b.id, codeType)
             if (!dbCode) {
-              // DB code was consumed or expired — clear local state and generate a fresh code
-              delete updatedCodes[b.id]
-              stateChanged = true
+              // I3 fix: Do NOT touch updatedCodes/stateChanged here.
+              // handleGenerateCode calls setActiveCodes internally with the fresh code.
+              // Calling setActiveCodes(updatedCodes) afterwards with the key absent would race
+              // against that update and reinstate the stale entry.
               await handleGenerateCode(b.id, codeType)
             }
             // DB code still valid — nothing to do, keep displaying the current code
