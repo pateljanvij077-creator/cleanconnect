@@ -38,7 +38,17 @@ function VerificationModal({ job, codeType, onSuccess, onRequestNewCode, onClose
     }
     setVerifying(true)
     try {
-      const coords = await getCurrentPosition().catch(() => ({ lat: null, lng: null }))
+      // C2 fix: GPS is required. Surface the error rather than silently passing nulls,
+      // which would bypass the 100-metre proximity check in the database function.
+      let coords
+      try {
+        coords = await getCurrentPosition()
+      } catch (gpsErr) {
+        toast.error('GPS location required. Please enable location services and try again.')
+        setVerifying(false)
+        return
+      }
+
       const response = await verifyBookingCodeRPC(job.id, code, coords.lat, coords.lng)
       if (response?.success) {
         toast.success(response.message || 'Verified! Proceeding…')
@@ -48,7 +58,7 @@ function VerificationModal({ job, codeType, onSuccess, onRequestNewCode, onClose
       }
     } catch (err) {
       console.error(err)
-      toast.error(err.message || 'Verification failed. Make sure GPS is enabled.')
+      toast.error(err.message || 'Verification failed. Please try again.')
     } finally {
       setVerifying(false)
     }
@@ -67,8 +77,11 @@ function VerificationModal({ job, codeType, onSuccess, onRequestNewCode, onClose
     setRequesting(true)
     try {
       await deleteCode(job.id, codeType)
-      // Revert booking status so realtime kicks homeowner UI
-      const prevStatus = codeType === 'start' ? 'accepted' : 'started'
+      // I1 fix: Revert to the correct preceding status.
+      // For start codes (arrived → verified → started): revert to 'arrived' so the cleaner's
+      // GPS arrival record is preserved and only the code is reset.
+      // For finish codes (finishing → verified → completed): revert to 'started'.
+      const prevStatus = codeType === 'start' ? 'arrived' : 'started'
       await updateBookingStatus(job.id, prevStatus)
       toast.success('Code reset. Please ask the homeowner to generate a new code.')
       onRequestNewCode()

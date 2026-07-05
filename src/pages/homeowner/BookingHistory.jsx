@@ -185,7 +185,8 @@ export default function BookingHistory() {
     activeCodesRef.current = activeCodes
   }, [activeCodes])
 
-  // Load active codes from localStorage
+  // Load active code metadata from localStorage.
+  // SECURITY: Only { type, expiry } is persisted — the plain code is NEVER stored.
   useEffect(() => {
     if (homeowner) {
       const stored = localStorage.getItem(`active_codes_${homeowner.id}`)
@@ -195,8 +196,10 @@ export default function BookingHistory() {
           const now = Date.now()
           const filtered = {}
           Object.keys(parsed).forEach(bookingId => {
-            if (parsed[bookingId] && parsed[bookingId].expiry > now) {
-              filtered[bookingId] = parsed[bookingId]
+            const entry = parsed[bookingId]
+            // Strip any legacy plain-code fields that may have been stored before this fix
+            if (entry && entry.expiry > now) {
+              filtered[bookingId] = { type: entry.type, expiry: entry.expiry }
             }
           })
           setActiveCodes(filtered)
@@ -252,14 +255,22 @@ export default function BookingHistory() {
       const expiry = Date.now() + 10 * 60 * 1000 // 10 minutes
       
       setActiveCodes(prev => {
-        const updated = {
+        // SECURITY: Only { type, expiry } is persisted to localStorage.
+        // The plain `code` lives in React state (memory) only and is never written to storage.
+        const metadataOnly = { type: codeType, expiry }
+        const updatedMeta = { ...prev }
+        Object.keys(updatedMeta).forEach(k => {
+          updatedMeta[k] = { type: updatedMeta[k].type, expiry: updatedMeta[k].expiry }
+        })
+        updatedMeta[bookingId] = metadataOnly
+        if (homeowner) {
+          localStorage.setItem(`active_codes_${homeowner.id}`, JSON.stringify(updatedMeta))
+        }
+        // In-memory state retains the plain code for display
+        return {
           ...prev,
           [bookingId]: { code, type: codeType, expiry }
         }
-        if (homeowner) {
-          localStorage.setItem(`active_codes_${homeowner.id}`, JSON.stringify(updated))
-        }
-        return updated
       })
       toast.success(`${codeType === 'start' ? 'Start' : 'Finish'} Code generated!`)
     } catch (err) {
@@ -276,6 +287,7 @@ export default function BookingHistory() {
       if (b.status === 'arrived' || b.status === 'finishing') {
         const codeType = b.status === 'arrived' ? 'start' : 'finish'
         
+        // Skip if a generation is already in-flight for this booking
         if (generatingRef.current[b.id]) {
           continue
         }
@@ -284,18 +296,25 @@ export default function BookingHistory() {
         const hasValidLocalCode = localCode && localCode.type === codeType && localCode.expiry > Date.now()
         
         if (hasValidLocalCode) {
+          // I2 fix: verify the DB record still exists (cleaner may have verified, deleting it).
+          // Only skip regeneration when the DB code is confirmed to exist.
           try {
             generatingRef.current[b.id] = true
             const dbCode = await getActiveCode(b.id, codeType)
             if (!dbCode) {
+              // DB code was consumed or expired — clear local state and generate a fresh code
+              delete updatedCodes[b.id]
+              stateChanged = true
               await handleGenerateCode(b.id, codeType)
             }
+            // DB code still valid — nothing to do, keep displaying the current code
           } catch (err) {
             console.error('Error checking active code in DB:', err)
           } finally {
             delete generatingRef.current[b.id]
           }
         } else {
+          // No valid local code — generate a new one
           try {
             generatingRef.current[b.id] = true
             await handleGenerateCode(b.id, codeType)
@@ -306,6 +325,7 @@ export default function BookingHistory() {
           }
         }
       } else {
+        // Booking is no longer in a code-required state — evict from local state
         if (updatedCodes[b.id]) {
           delete updatedCodes[b.id]
           stateChanged = true
@@ -314,9 +334,14 @@ export default function BookingHistory() {
     }
 
     if (stateChanged) {
+      // Persist only { type, expiry } — never the plain code
+      const metadataOnly = {}
+      Object.keys(updatedCodes).forEach(k => {
+        metadataOnly[k] = { type: updatedCodes[k].type, expiry: updatedCodes[k].expiry }
+      })
       setActiveCodes(updatedCodes)
       if (homeowner) {
-        localStorage.setItem(`active_codes_${homeowner.id}`, JSON.stringify(updatedCodes))
+        localStorage.setItem(`active_codes_${homeowner.id}`, JSON.stringify(metadataOnly))
       }
     }
   }
