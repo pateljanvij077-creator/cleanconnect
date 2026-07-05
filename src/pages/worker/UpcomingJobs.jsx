@@ -224,17 +224,27 @@ export default function UpcomingJobs() {
   }
 
   /**
-   * Cleaner taps "Finish Cleaning" — set booking to `finishing`, open verification modal.
+   * Cleaner taps "Finish Cleaning" — capture GPS, set booking to `finishing`, open verification modal.
+   * GPS coordinates are stored so the DB can enforce the 100-metre proximity check during finish-code
+   * verification, matching the same requirement enforced at the arrived step.
    */
   const handleFinishing = async (job) => {
     setLoading_(job.id, true)
     try {
-      await updateBookingStatus(job.id, 'finishing')
+      let coords
+      try {
+        coords = await getCurrentPosition()
+      } catch (gpsErr) {
+        toast.error('GPS location required to finish the job. Please enable location services and try again.')
+        setLoading_(job.id, false)
+        return
+      }
+      await updateBookingStatus(job.id, 'finishing', { cleaner_lat: coords.lat, cleaner_lng: coords.lng })
       toast.success('Almost done! Please get the check-out code from the homeowner.')
       await fetchJobsAndShowModal(job.id, 'finish')
     } catch (err) {
       console.error(err)
-      toast.error('Failed to update status.')
+      toast.error('Failed to update status. Please try again.')
     } finally {
       setLoading_(job.id, false)
     }
