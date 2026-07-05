@@ -6,4 +6,6 @@
 - [ ] Task 4: Cleaner Verification UI & Proximity Validation
 
 Task 1: complete (commits c03041d..47bf283, review clean)
+Task 2: complete (commits 47bf283..60557d4, review clean)
+
 

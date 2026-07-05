@@ -1,11 +1,168 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import HomeOwnerLayout from '../../components/layout/HomeOwnerLayout'
-import { getHomeownerBookings, updateBookingStatus, createReview } from '../../services/bookings'
+import { getHomeownerBookings, updateBookingStatus, createReview, saveHashedCode, getActiveCode } from '../../services/bookings'
 import { createNotification } from '../../services/notifications'
 import { useAuth } from '../../hooks/useAuth'
 import { formatDate, formatTime, getStatusClass } from '../../utils/helpers'
-import { Star, MessageCircle, AlertCircle, X } from 'lucide-react'
+import { Star, MessageCircle, AlertCircle, X, Clock, RefreshCw, Copy, Check } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { supabase } from '../../supabase/client'
+
+const generateSecureCode = () => {
+  const array = new Uint32Array(1)
+  window.crypto.getRandomValues(array)
+  return String(array[0] % 1000000).padStart(6, '0')
+}
+
+const hashSHA256 = async (text) => {
+  const msgBuffer = new TextEncoder().encode(text)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+const formatTimeLeft = (seconds) => {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+function VerificationCodeCard({ bookingId, activeCode, onRegenerate }) {
+  const [timeLeft, setTimeLeft] = useState(0)
+  const [copied, setCopied] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
+
+  useEffect(() => {
+    if (!activeCode) return
+
+    const calculateTimeLeft = () => {
+      return Math.max(0, Math.floor((activeCode.expiry - Date.now()) / 1000))
+    }
+
+    setTimeLeft(calculateTimeLeft())
+
+    const timer = setInterval(() => {
+      const remaining = calculateTimeLeft()
+      setTimeLeft(remaining)
+      if (remaining <= 0) {
+        clearInterval(timer)
+      }
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [activeCode])
+
+  if (!activeCode) return null
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(activeCode.code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+    toast.success('Code copied to clipboard!')
+  }
+
+  const handleRegenerateClick = async () => {
+    setIsRegenerating(true)
+    await onRegenerate()
+    setIsRegenerating(false)
+  }
+
+  const isExpired = timeLeft <= 0
+
+  return (
+    <div className="card glass fade-in" style={{
+      borderLeft: '4px solid var(--primary)',
+      padding: '1.25rem',
+      marginTop: '-0.5rem',
+      marginBottom: '0.5rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.75rem',
+      background: 'rgba(255, 255, 255, 0.03)',
+      borderRadius: 'var(--radius-md)'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div>
+          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: isExpired ? 'var(--danger)' : '#22c55e',
+              display: 'inline-block'
+            }} />
+            {activeCode.type === 'start' ? 'Check-in Security Code' : 'Check-out Security Code'}
+          </h4>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '2px 0 0 0' }}>
+            {activeCode.type === 'start' 
+              ? 'Provide this code to the cleaner to start the service.' 
+              : 'Provide this code to the cleaner to complete the service.'}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600, color: isExpired ? 'var(--danger)' : 'var(--text-secondary)' }}>
+          <Clock size={16} />
+          {isExpired ? 'Expired' : formatTimeLeft(timeLeft)}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          background: 'rgba(0, 0, 0, 0.2)',
+          padding: '0.5rem 1rem',
+          borderRadius: '8px',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <span style={{
+            fontFamily: 'monospace',
+            fontSize: '1.5rem',
+            fontWeight: 800,
+            letterSpacing: '0.15em',
+            color: isExpired ? 'var(--text-muted)' : 'var(--primary)'
+          }}>
+            {activeCode.code}
+          </span>
+          <button 
+            onClick={handleCopy} 
+            disabled={isExpired}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: 'var(--text-secondary)', 
+              cursor: 'pointer', 
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: isExpired ? 0.5 : 1
+            }}
+            title="Copy Code"
+          >
+            {copied ? <Check size={16} color="#22c55e" /> : <Copy size={16} />}
+          </button>
+        </div>
+
+        <button 
+          onClick={handleRegenerateClick} 
+          className="btn btn-secondary btn-sm"
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.4rem',
+            padding: '0.5rem 0.75rem',
+            fontSize: '0.8rem'
+          }}
+        >
+          <RefreshCw size={14} style={{ transition: 'transform 0.5s ease' }} />
+          Regenerate Code
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export default function BookingHistory() {
   const { homeowner } = useAuth()
@@ -18,14 +175,151 @@ export default function BookingHistory() {
   const [comment, setComment] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
 
-  const fetchBookings = useEffect(() => {
+  // Code generation state
+  const [activeCodes, setActiveCodes] = useState({})
+  const activeCodesRef = useRef({})
+  const generatingRef = useRef({})
+
+  // Update ref when state changes to avoid stale closures in checkAndGenerateCodes
+  useEffect(() => {
+    activeCodesRef.current = activeCodes
+  }, [activeCodes])
+
+  // Load active codes from localStorage
+  useEffect(() => {
+    if (homeowner) {
+      const stored = localStorage.getItem(`active_codes_${homeowner.id}`)
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          const now = Date.now()
+          const filtered = {}
+          Object.keys(parsed).forEach(bookingId => {
+            if (parsed[bookingId] && parsed[bookingId].expiry > now) {
+              filtered[bookingId] = parsed[bookingId]
+            }
+          })
+          setActiveCodes(filtered)
+        } catch (e) {
+          console.error('Error parsing active codes from localStorage', e)
+        }
+      }
+    }
+  }, [homeowner])
+
+  const fetchBookings = () => {
     if (homeowner) {
       getHomeownerBookings(homeowner.id)
-        .then(setBookings)
+        .then(data => {
+          setBookings(data)
+          checkAndGenerateCodes(data)
+        })
         .catch(err => console.error(err))
         .finally(() => setLoading(false))
     }
+  }
+
+  useEffect(() => {
+    fetchBookings()
   }, [homeowner])
+
+  // Realtime subscription for public:bookings
+  useEffect(() => {
+    if (!homeowner) return
+
+    const channel = supabase
+      .channel('bookings-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings', filter: `homeowner_id=eq.${homeowner.id}` },
+        () => {
+          fetchBookings()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [homeowner])
+
+  const handleGenerateCode = async (bookingId, codeType) => {
+    try {
+      const code = generateSecureCode()
+      const hashed = await hashSHA256(code)
+      await saveHashedCode(bookingId, hashed, codeType)
+      
+      const expiry = Date.now() + 10 * 60 * 1000 // 10 minutes
+      
+      setActiveCodes(prev => {
+        const updated = {
+          ...prev,
+          [bookingId]: { code, type: codeType, expiry }
+        }
+        if (homeowner) {
+          localStorage.setItem(`active_codes_${homeowner.id}`, JSON.stringify(updated))
+        }
+        return updated
+      })
+      toast.success(`${codeType === 'start' ? 'Start' : 'Finish'} Code generated!`)
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to generate security code')
+    }
+  }
+
+  const checkAndGenerateCodes = async (currentBookings) => {
+    let stateChanged = false
+    const updatedCodes = { ...activeCodesRef.current }
+
+    for (const b of currentBookings) {
+      if (b.status === 'arrived' || b.status === 'finishing') {
+        const codeType = b.status === 'arrived' ? 'start' : 'finish'
+        
+        if (generatingRef.current[b.id]) {
+          continue
+        }
+        
+        const localCode = activeCodesRef.current[b.id]
+        const hasValidLocalCode = localCode && localCode.type === codeType && localCode.expiry > Date.now()
+        
+        if (hasValidLocalCode) {
+          try {
+            generatingRef.current[b.id] = true
+            const dbCode = await getActiveCode(b.id, codeType)
+            if (!dbCode) {
+              await handleGenerateCode(b.id, codeType)
+            }
+          } catch (err) {
+            console.error('Error checking active code in DB:', err)
+          } finally {
+            delete generatingRef.current[b.id]
+          }
+        } else {
+          try {
+            generatingRef.current[b.id] = true
+            await handleGenerateCode(b.id, codeType)
+          } catch (err) {
+            console.error('Error generating new code:', err)
+          } finally {
+            delete generatingRef.current[b.id]
+          }
+        }
+      } else {
+        if (updatedCodes[b.id]) {
+          delete updatedCodes[b.id]
+          stateChanged = true
+        }
+      }
+    }
+
+    if (stateChanged) {
+      setActiveCodes(updatedCodes)
+      if (homeowner) {
+        localStorage.setItem(`active_codes_${homeowner.id}`, JSON.stringify(updatedCodes))
+      }
+    }
+  }
 
   const handleCancelBooking = async (booking) => {
     const confirm = window.confirm('Are you sure you want to cancel this booking request?')
@@ -109,41 +403,56 @@ export default function BookingHistory() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {bookings.map(b => (
-              <div key={b.id} className="card glass" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                {b.workers?.avatar_url && (
-                  <img src={b.workers.avatar_url} alt={b.workers.full_name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover' }} />
-                )}
-                
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{b.workers?.full_name}</h3>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    {formatDate(b.service_date)} at {formatTime(b.service_time)}
-                  </p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Payment: <span style={{ textTransform: 'capitalize' }}>{b.payment_method}</span> ({b.payment_status})
-                  </p>
-                </div>
+            {bookings.map(b => {
+              const codeType = b.status === 'arrived' ? 'start' : (b.status === 'finishing' ? 'finish' : null)
+              const activeCode = codeType ? activeCodes[b.id] : null
 
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <span className={`badge ${getStatusClass(b.status)}`}>
-                    {b.status}
-                  </span>
+              return (
+                <div key={b.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div className="card glass" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {b.workers?.avatar_url && (
+                      <img src={b.workers.avatar_url} alt={b.workers.full_name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover' }} />
+                    )}
+                    
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{b.workers?.full_name}</h3>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        {formatDate(b.service_date)} at {formatTime(b.service_time)}
+                      </p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        Payment: <span style={{ textTransform: 'capitalize' }}>{b.payment_method}</span> ({b.payment_status})
+                      </p>
+                    </div>
 
-                  {b.status === 'pending' && (
-                    <button onClick={() => handleCancelBooking(b)} className="btn btn-secondary btn-sm" style={{ color: 'var(--danger)' }}>
-                      Cancel
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <span className={`badge ${getStatusClass(b.status)}`}>
+                        {b.status}
+                      </span>
+
+                      {b.status === 'pending' && (
+                        <button onClick={() => handleCancelBooking(b)} className="btn btn-secondary btn-sm" style={{ color: 'var(--danger)' }}>
+                          Cancel
+                        </button>
+                      )}
+
+                      {b.status === 'completed' && b.payment_status === 'pending' && (
+                        <button onClick={() => openReviewModal(b)} className="btn btn-primary btn-sm">
+                          Rate Cleaner
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {activeCode && (
+                    <VerificationCodeCard
+                      bookingId={b.id}
+                      activeCode={activeCode}
+                      onRegenerate={() => handleGenerateCode(b.id, codeType)}
+                    />
                   )}
-
-                  {b.status === 'completed' && b.payment_status === 'pending' && (
-                    <button onClick={() => openReviewModal(b)} className="btn btn-primary btn-sm">
-                      Rate Cleaner
-                    </button>
-                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 
