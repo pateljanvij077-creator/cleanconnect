@@ -58,7 +58,8 @@ export default function WorkerSignup() {
       workerType: 'home_cleaning',
       pricingPerHour: 150,
       pricingPerDay: 800,
-      pricingNote: ''
+      pricingNote: '',
+      travelRadius: 10
     }
   })
 
@@ -66,8 +67,22 @@ export default function WorkerSignup() {
   const watchLanguages = watch('languages')
   const watchWorkerType = watch('workerType')
 
+  const [maxSelectableSocieties, setMaxSelectableSocieties] = useState(10)
+
   useEffect(() => {
     getStates().then(setStatesList).catch(err => console.error('Error fetching states:', err))
+
+    // Fetch max selectable societies setting
+    supabase
+      .from('system_settings')
+      .select('*')
+      .eq('key', 'max_selectable_societies')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && data.value) {
+          setMaxSelectableSocieties(Number(data.value))
+        }
+      })
   }, [])
 
   // Load cities when current location state selection changes
@@ -118,6 +133,15 @@ export default function WorkerSignup() {
     if (!currentLoc.stateName || !currentLoc.cityName || !currentLoc.areaName) {
       toast.error('Type State, City and Area to add location')
       return
+    }
+
+    const isAddingSociety = currentLoc.societyName && currentLoc.societyName !== 'All Societies'
+    if (isAddingSociety) {
+      const selectedSocietiesCount = locations.filter(loc => loc.societyName && loc.societyName !== 'All Societies').length
+      if (selectedSocietiesCount >= maxSelectableSocieties) {
+        toast.error(`Maximum selectable societies limit reached (${maxSelectableSocieties})`)
+        return
+      }
     }
 
     const newLoc = {
@@ -395,7 +419,7 @@ export default function WorkerSignup() {
                 </div>
               </div>
 
-              <div className="grid-2">
+              <div className="grid-3">
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Pricing Rate Per Hour (₹)</label>
                   <input type="number" className="form-input" {...register('pricingPerHour', { valueAsNumber: true })} />
@@ -403,6 +427,17 @@ export default function WorkerSignup() {
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Pricing Rate Per Day (₹)</label>
                   <input type="number" className="form-input" {...register('pricingPerDay', { valueAsNumber: true })} />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Service Travel Radius</label>
+                  <select className="form-select" {...register('travelRadius', { valueAsNumber: true })}>
+                    <option value={3}>3 km</option>
+                    <option value={5}>5 km</option>
+                    <option value={8}>8 km</option>
+                    <option value={10}>10 km</option>
+                    <option value={15}>15 km</option>
+                    <option value={20}>20 km</option>
+                  </select>
                 </div>
               </div>
 

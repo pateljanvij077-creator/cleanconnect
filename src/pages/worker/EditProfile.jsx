@@ -41,6 +41,22 @@ export default function EditProfile() {
   const [cities, setCities] = useState([])
   const [areas, setAreas] = useState([])
   const [selLoc, setSelLoc] = useState({ stateId: '', cityId: '', areaId: '', societyName: '' })
+  const [travelRadius, setTravelRadius] = useState(10)
+  const [maxSelectableSocieties, setMaxSelectableSocieties] = useState(10)
+
+  // Fetch max_selectable_societies on mount
+  useEffect(() => {
+    supabase
+      .from('system_settings')
+      .select('*')
+      .eq('key', 'max_selectable_societies')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && data.value) {
+          setMaxSelectableSocieties(Number(data.value))
+        }
+      })
+  }, [])
 
   useEffect(() => {
     if (worker) {
@@ -52,6 +68,7 @@ export default function EditProfile() {
       setPricingNote(worker.pricing_note || '')
       setPhone2(worker.phone2 || '')
       setLanguages(worker.languages || [])
+      setTravelRadius(worker.travel_radius || 10)
 
       // Load locations
       getWorkerLocations(worker.id).then(setLocations)
@@ -79,6 +96,16 @@ export default function EditProfile() {
     if (!selLoc.stateId || !selLoc.cityId || !selLoc.areaId) {
       toast.error('Select State, City and Area')
       return
+    }
+
+    // Limit society selection count
+    const isAddingSociety = selLoc.societyName && selLoc.societyName !== 'All Societies'
+    if (isAddingSociety) {
+      const selectedSocietiesCount = locations.filter(loc => loc.society_name && loc.society_name !== 'All Societies').length
+      if (selectedSocietiesCount >= maxSelectableSocieties) {
+        toast.error(`Maximum selectable societies limit reached (${maxSelectableSocieties})`)
+        return
+      }
     }
 
     const stateObj = states.find(s => s.id === selLoc.stateId)
@@ -156,7 +183,8 @@ export default function EditProfile() {
           pricing_per_day: Number(pricingPerDay),
           pricing_note: pricingNote,
           phone2,
-          languages
+          languages,
+          travel_radius: Number(travelRadius)
         })
         .eq('id', worker.id)
 
@@ -243,9 +271,22 @@ export default function EditProfile() {
             </div>
           </div>
 
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Pricing Notes</label>
-            <input type="text" className="form-input" value={pricingNote} onChange={e => setPricingNote(e.target.value)} />
+          <div className="grid-2">
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Pricing Notes</label>
+              <input type="text" className="form-input" value={pricingNote} onChange={e => setPricingNote(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Service Travel Distance Limit (Radius)</label>
+              <select className="form-select" value={travelRadius} onChange={e => setTravelRadius(Number(e.target.value))}>
+                <option value={3}>3 km</option>
+                <option value={5}>5 km</option>
+                <option value={8}>8 km</option>
+                <option value={10}>10 km</option>
+                <option value={15}>15 km</option>
+                <option value={20}>20 km</option>
+              </select>
+            </div>
           </div>
 
           {/* Languages input section */}

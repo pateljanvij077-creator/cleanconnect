@@ -9,7 +9,7 @@ export async function getApprovedWorkers() {
     .from('workers')
     .select('*')
     .eq('verification_status', 'approved')
-    .eq('is_available', true)
+    .in('availability_status', ['available', 'busy'])
     .eq('is_subscription_active', true)
     .eq('is_active', true)
 
@@ -22,7 +22,16 @@ export async function getApprovedWorkers() {
 
   if (locError) throw locError
 
-  return { workers, locations }
+  // Fetch all system settings for matching parameters
+  const { data: settings, error: settingsError } = await supabase
+    .from('system_settings')
+    .select('*')
+
+  if (settingsError) {
+    console.error('Failed to load system settings:', settingsError)
+  }
+
+  return { workers, locations, settings: settings || [] }
 }
 
 export async function getWorkerById(workerId) {

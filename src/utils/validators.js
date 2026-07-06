@@ -41,6 +41,7 @@ export const workerSignupSchema = z.object({
   pricingPerHour: z.number().min(1, 'Hourly pricing is required'),
   pricingPerDay: z.number().min(1, 'Daily pricing is required'),
   pricingNote: z.string().optional(),
+  travelRadius: z.number().optional().default(10),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],

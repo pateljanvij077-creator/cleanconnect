@@ -16,8 +16,8 @@ export function useWorkers(homeownerProfile) {
     setLoading(true)
     setError(null)
     try {
-      const { workers: allWorkers, locations: allLocations } = await getApprovedWorkers()
-      const sortedWorkers = matchWorkers(homeownerProfile, allWorkers, allLocations)
+      const { workers: allWorkers, locations: allLocations, settings: allSettings } = await getApprovedWorkers()
+      const sortedWorkers = matchWorkers(homeownerProfile, allWorkers, allLocations, allSettings)
       setWorkers(sortedWorkers)
     } catch (err) {
       console.error('Error fetching/matching workers:', err)

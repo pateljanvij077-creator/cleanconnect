@@ -129,7 +129,8 @@ export async function createWorkerProfile(userId, roleId, profileData) {
       is_available: false,
       availability_status: 'offline',
       verification_status: 'pending',
-      is_subscription_active: false
+      is_subscription_active: false,
+      travel_radius: Number(profileData.travelRadius || 10)
     }])
     .select()
     .single()

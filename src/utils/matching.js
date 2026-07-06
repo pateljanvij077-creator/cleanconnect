@@ -15,7 +15,7 @@ import { calculateDistance } from './gps'
  * @param {Array} workerLocations - Locations associated with each worker
  * @returns {Array} List of matched, scored and sorted workers
  */
-export function matchWorkers(homeowner, workers, workerLocations) {
+export function matchWorkers(homeowner, workers, workerLocations, systemSettings = []) {
   if (!homeowner || !workers) return []
 
   const homeownerLat = homeowner.latitude
@@ -24,28 +24,48 @@ export function matchWorkers(homeowner, workers, workerLocations) {
   const homeownerAreaId = homeowner.area_id
   const homeownerCityId = homeowner.city_id
 
-  return workers
+  // Get settings helper
+  const getSettingVal = (key, defaultVal) => {
+    const s = systemSettings.find(item => item.key === key)
+    return s ? s.value : defaultVal
+  }
+
+  const allowBusyVal = getSettingVal('allow_busy_workers', 'true') === 'true'
+
+  const matchedAndScored = workers
     .map((worker) => {
       // Find all locations registered for this worker
       const locations = workerLocations.filter((loc) => loc.worker_id === worker.id)
       
-      let maxScore = 0
+      // Filter locations to only those in the homeowner's city
+      const cityLocations = locations.filter(loc => loc.city_id === homeownerCityId)
+      
+      // If worker has no locations in the homeowner's city, they cannot match (Never Display Different City)
+      if (cityLocations.length === 0) {
+        return null
+      }
+
+      let bestLocation = null
+      let maxLocScore = -1
       let minDistance = Infinity
-      let matchedLocationType = 'GPS Distance Only'
+      let matchedLocationType = 'Same City'
 
-      // Check each location registered by the worker to find the best match
-      locations.forEach((loc) => {
+      // Check each location in the same city to find the best match
+      cityLocations.forEach((loc) => {
         let score = 0
-        let type = 'GPS'
+        let type = 'Same City'
 
-        if (homeownerSocietyId && loc.society_id === homeownerSocietyId) {
-          score = 1000 // Highest priority
+        const isSameSociety = homeownerSocietyId && loc.society_id === homeownerSocietyId
+        const isSameArea = homeownerAreaId && loc.area_id === homeownerAreaId
+
+        if (isSameSociety) {
+          score = 1000 // Highest priority: Same Society
           type = 'Same Society'
-        } else if (homeownerAreaId && loc.area_id === homeownerAreaId) {
-          score = 500
-          type = 'Same Area'
-        } else if (homeownerCityId && loc.city_id === homeownerCityId) {
-          score = 250
+        } else if (isSameArea) {
+          score = 500 // Priority: Nearby Society (same area)
+          type = 'Nearby Society'
+        } else {
+          score = 250 // Same City
           type = 'Same City'
         }
 
@@ -53,35 +73,54 @@ export function matchWorkers(homeowner, workers, workerLocations) {
         const distance = calculateDistance(
           homeownerLat, 
           homeownerLng, 
-          loc.latitude || worker.latitude, 
-          loc.longitude || worker.longitude
+          loc.latitude, 
+          loc.longitude
         )
+
+        // If distance is finite, check worker's selected travel radius limit
+        const travelRadius = Number(worker.travel_radius || 10)
+        if (distance !== Infinity && distance > travelRadius) {
+          // Homeowner is outside worker's service radius, ignore this location
+          return
+        }
 
         // Scoring adjustment based on distance (closer = higher score)
         const distanceScore = distance < Infinity ? Math.max(0, 100 - distance) : 0
         const totalLocScore = score + distanceScore
 
-        if (totalLocScore > maxScore) {
-          maxScore = totalLocScore
+        if (totalLocScore > maxLocScore) {
+          maxLocScore = totalLocScore
           minDistance = distance
           matchedLocationType = type
+          bestLocation = loc
         }
       })
 
-      // Fallback: If no matching location list, compute direct worker distance
-      if (locations.length === 0) {
-        minDistance = calculateDistance(
-          homeownerLat, 
-          homeownerLng, 
-          worker.latitude, 
-          worker.longitude
-        )
+      // Fallback if coordinates are missing but same city/area/society name
+      if (maxLocScore === -1 && cityLocations.length > 0) {
+        const hasNullCoords = cityLocations.some(loc => loc.latitude === null || loc.longitude === null)
+        if (hasNullCoords) {
+          const fallbackLoc = cityLocations[0]
+          minDistance = Infinity
+          matchedLocationType = fallbackLoc.society_id === homeownerSocietyId ? 'Same Society' : 
+                               (fallbackLoc.area_id === homeownerAreaId ? 'Nearby Society' : 'Same City')
+          maxLocScore = fallbackLoc.society_id === homeownerSocietyId ? 1000 : 
+                        (fallbackLoc.area_id === homeownerAreaId ? 500 : 250)
+        } else {
+          return null
+        }
       }
 
       // Add scoring based on rating and total completed jobs as tie-breakers
       const ratingBonus = Number(worker.rating || 0) * 5
       const experienceBonus = Math.min(10, Number(worker.experience_years || 0))
-      const finalScore = maxScore + ratingBonus + experienceBonus
+      
+      // Availability priority: Available Now appears first
+      const isAvailable = worker.availability_status === 'available'
+      const isBusy = worker.availability_status === 'busy'
+      const availabilityBonus = isAvailable ? 20000 : (isBusy ? 0 : -50000)
+
+      const finalScore = maxLocScore + ratingBonus + experienceBonus + availabilityBonus
 
       return {
         ...worker,
@@ -90,8 +129,48 @@ export function matchWorkers(homeowner, workers, workerLocations) {
         matchType: matchedLocationType
       }
     })
-    // Filters: must be available, verified (approved), and have an active subscription
-    .filter((w) => w.is_available && w.verification_status === 'approved' && w.is_subscription_active)
-    // Sort: highest score first
-    .sort((a, b) => b.matchScore - a.matchScore)
+    .filter(Boolean)
+
+  // Filters: must be approved, subscription active, active, and available/busy (based on settings)
+  const activeWorkers = matchedAndScored.filter((w) => {
+    const isApproved = w.verification_status === 'approved'
+    const isSubActive = w.is_subscription_active
+    const isActive = w.is_active !== false
+    
+    const isOfflineOrLeave = w.availability_status === 'offline' || w.availability_status === 'on_leave'
+    const isBusy = w.availability_status === 'busy'
+    
+    if (isOfflineOrLeave) return false
+    if (isBusy && !allowBusyVal) return false
+    
+    return isApproved && isSubActive && isActive
+  })
+
+  // Smart Search Expansion
+  // If fewer than 10 workers are found, expand the search radius progressively
+  const getWorkersInRadius = (workersList, radiusLimit) => {
+    return workersList.filter(w => w.distance === Infinity || w.distance <= radiusLimit)
+  }
+
+  let finalWorkers = activeWorkers
+
+  const workersUnder3km = getWorkersInRadius(activeWorkers, 3)
+  if (workersUnder3km.length >= 10) {
+    finalWorkers = workersUnder3km
+  } else {
+    const workersUnder5km = getWorkersInRadius(activeWorkers, 5)
+    if (workersUnder5km.length >= 10) {
+      finalWorkers = workersUnder5km
+    } else {
+      const workersUnder10km = getWorkersInRadius(activeWorkers, 10)
+      if (workersUnder10km.length >= 10) {
+        finalWorkers = workersUnder10km
+      } else {
+        finalWorkers = activeWorkers
+      }
+    }
+  }
+
+  // Sort: highest score first
+  return finalWorkers.sort((a, b) => b.matchScore - a.matchScore)
 }

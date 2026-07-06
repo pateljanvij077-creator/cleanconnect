@@ -75,10 +75,28 @@ export async function searchSocieties(query, cityId = null) {
  * @param {object} param0 
  * @returns {Promise<object>} Created/existing society
  */
+export function normalizeSocietyName(name) {
+  if (!name) return ''
+  return name
+    .trim()
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
+/**
+ * Find or create a society to prevent duplicates
+ * @param {object} param0 
+ * @returns {Promise<object>} Created/existing society
+ */
 export async function findOrCreateSociety({ name, areaId, cityId, latitude, longitude, address }) {
-  const normalizedName = name.trim()
+  const normalizedName = normalizeSocietyName(name)
+  if (!normalizedName) throw new Error('Society name cannot be empty')
   
-  // 1. Check if society exists in this city
+  // 1. Check if society exists in this city (case-insensitive check)
   const { data: existing, error: checkError } = await supabase
     .from('societies')
     .select('*')
