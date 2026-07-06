@@ -8,6 +8,7 @@ import SkeletonCard from '../../components/common/SkeletonCard'
 import { toggleFavorite, getFavorites } from '../../services/bookings'
 import { Sparkles, SlidersHorizontal, Search } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function HomeOwnerDashboard() {
   const navigate = useNavigate()
@@ -110,40 +111,50 @@ export default function HomeOwnerDashboard() {
             </button>
           </div>
 
-          {showFilters && (
-            <div className="grid-3 slide-up" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Worker Type</label>
-                <select className="form-select" value={workerType} onChange={(e) => setWorkerType(e.target.value)}>
-                  <option value="all">All Service Types</option>
-                  <option value="home_cleaning">Home Cleaning Only</option>
-                  <option value="office_cleaning">Office Cleaning Only</option>
-                  <option value="both">Home & Office Cleaning</option>
-                </select>
-              </div>
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                style={{ overflow: 'hidden' }}
+              >
+                <div className="grid-3 slide-up" style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Worker Type</label>
+                    <select className="form-select" value={workerType} onChange={(e) => setWorkerType(e.target.value)}>
+                      <option value="all">All Service Types</option>
+                      <option value="home_cleaning">Home Cleaning Only</option>
+                      <option value="office_cleaning">Office Cleaning Only</option>
+                      <option value="both">Home & Office Cleaning</option>
+                    </select>
+                  </div>
 
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Min Star Rating</label>
-                <select className="form-select" value={minRating} onChange={(e) => setMinRating(Number(e.target.value))}>
-                  <option value={0}>Show All Ratings</option>
-                  <option value={4}>4.0 ★ & Above</option>
-                  <option value={4.5}>4.5 ★ & Above</option>
-                </select>
-              </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Min Star Rating</label>
+                    <select className="form-select" value={minRating} onChange={(e) => setMinRating(Number(e.target.value))}>
+                      <option value={0}>Show All Ratings</option>
+                      <option value={4}>4.0 ★ & Above</option>
+                      <option value={4.5}>4.5 ★ & Above</option>
+                    </select>
+                  </div>
 
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label">Max Distance ({maxDistance} km)</label>
-                <input 
-                  type="range" 
-                  min={1} 
-                  max={30} 
-                  value={maxDistance} 
-                  onChange={(e) => setMaxDistance(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--primary)' }}
-                />
-              </div>
-            </div>
-          )}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Max Distance ({maxDistance} km)</label>
+                    <input 
+                      type="range" 
+                      min={1} 
+                      max={30} 
+                      value={maxDistance} 
+                      onChange={(e) => setMaxDistance(Number(e.target.value))}
+                      style={{ width: '100%', accentColor: 'var(--primary)' }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Workers Feed Grid */}
@@ -164,19 +175,29 @@ export default function HomeOwnerDashboard() {
             <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-secondary)' }}>
               Nearby Matched Cleaners ({filteredWorkers.length})
             </h4>
-            <div className="grid-3">
-              {filteredWorkers.map(w => (
-                <WorkerCard 
-                  key={w.id}
-                  worker={w}
-                  distance={w.distance}
-                  isFavorited={favList.includes(w.id)}
-                  onFavoriteToggle={handleFavoriteToggle}
-                  onBook={handleBooking}
-                  onViewProfile={handleViewProfile}
-                />
-              ))}
-            </div>
+            <motion.div layout className="grid-3">
+              <AnimatePresence mode="popLayout">
+                {filteredWorkers.map((w, idx) => (
+                  <motion.div
+                    key={w.id}
+                    layout
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 100, damping: 15, delay: idx * 0.04 }}
+                  >
+                    <WorkerCard 
+                      worker={w}
+                      distance={w.distance}
+                      isFavorited={favList.includes(w.id)}
+                      onFavoriteToggle={handleFavoriteToggle}
+                      onBook={handleBooking}
+                      onViewProfile={handleViewProfile}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
           </div>
         )}
 

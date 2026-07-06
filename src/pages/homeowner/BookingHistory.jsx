@@ -4,9 +4,10 @@ import { getHomeownerBookings, updateBookingStatus, createReview, saveHashedCode
 import { createNotification } from '../../services/notifications'
 import { useAuth } from '../../hooks/useAuth'
 import { formatDate, formatTime, getStatusClass } from '../../utils/helpers'
-import { Star, MessageCircle, AlertCircle, X, Clock, RefreshCw, Copy, Check } from 'lucide-react'
+import { Star, MessageCircle, AlertCircle, X, Clock, RefreshCw, Copy, Check, History } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { supabase } from '../../supabase/client'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const generateSecureCode = () => {
   const array = new Uint32Array(1)
@@ -435,133 +436,231 @@ export default function BookingHistory() {
 
   return (
     <HomeOwnerLayout>
-      <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Booking History</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
+
+        {/* Animated page header */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+        >
+          <div style={{ background: 'var(--primary-light)', padding: '10px', borderRadius: '12px', color: 'var(--primary)' }}>
+            <History size={22} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Booking History</h2>
+            {!loading && bookings.length > 0 && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                {bookings.length} booking{bookings.length !== 1 ? 's' : ''} recorded
+              </p>
+            )}
+          </div>
+        </motion.div>
 
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
-            <div className="spinner" />
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            style={{ display: 'flex', justifyContent: 'center', flexDirection: 'column', alignItems: 'center', padding: '3rem', gap: '1rem' }}
+          >
+            <div className="spinner" style={{ width: '40px', height: '40px' }} />
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading bookings...</p>
+          </motion.div>
         ) : bookings.length === 0 ? (
-          <div className="card glass flex-center" style={{ padding: '3rem', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}>
-            <AlertCircle size={36} color="var(--text-muted)" />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>No Bookings Yet</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              Your cleaning scheduling requests will appear here.
+          <motion.div
+            initial={{ opacity: 0, scale: 0.93 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+            className="card glass flex-center"
+            style={{ padding: '4rem 2rem', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}
+          >
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <AlertCircle size={48} color="var(--text-muted)" />
+            </motion.div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>No Bookings Yet</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '300px' }}>
+              Your cleaning scheduling requests will appear here once you book a cleaner.
             </p>
-          </div>
+          </motion.div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {bookings.map(b => {
-              const codeType = b.status === 'arrived' ? 'start' : (b.status === 'finishing' ? 'finish' : null)
-              const activeCode = codeType ? activeCodes[b.id] : null
+            <AnimatePresence mode="popLayout">
+              {bookings.map((b, idx) => {
+                const codeType = b.status === 'arrived' ? 'start' : (b.status === 'finishing' ? 'finish' : null)
+                const activeCode = codeType ? activeCodes[b.id] : null
 
-              return (
-                <div key={b.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <div className="card glass" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {b.workers?.avatar_url && (
-                      <img src={b.workers.avatar_url} alt={b.workers.full_name} style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover' }} />
+                return (
+                  <motion.div
+                    key={b.id}
+                    layout
+                    initial={{ opacity: 0, y: 24, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, x: -40, scale: 0.95 }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 120,
+                      damping: 16,
+                      delay: idx * 0.05
+                    }}
+                    style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                  >
+                    <div className="card glass" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {b.workers?.avatar_url && (
+                        <motion.img
+                          src={b.workers.avatar_url}
+                          alt={b.workers.full_name}
+                          whileHover={{ scale: 1.08 }}
+                          style={{ width: '56px', height: '56px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }}
+                        />
+                      )}
+
+                      <div style={{ flex: 1, minWidth: '200px' }}>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{b.workers?.full_name}</h3>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                          {formatDate(b.service_date)} at {formatTime(b.service_time)}
+                        </p>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Payment: <span style={{ textTransform: 'capitalize' }}>{b.payment_method}</span> ({b.payment_status})
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <span className={`badge ${getStatusClass(b.status)}`}>
+                          {b.status}
+                        </span>
+
+                        {b.status === 'pending' && (
+                          <motion.button
+                            whileHover={{ scale: 1.04 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleCancelBooking(b)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ color: 'var(--danger)' }}
+                          >
+                            Cancel
+                          </motion.button>
+                        )}
+
+                        {b.status === 'completed' && b.payment_status === 'pending' && (
+                          <motion.button
+                            whileHover={{ scale: 1.04, y: -1 }}
+                            whileTap={{ scale: 0.97 }}
+                            onClick={() => openReviewModal(b)}
+                            className="btn btn-primary btn-sm"
+                          >
+                            Rate Cleaner
+                          </motion.button>
+                        )}
+                      </div>
+                    </div>
+
+                    {activeCode && (
+                      <VerificationCodeCard
+                        bookingId={b.id}
+                        activeCode={activeCode}
+                        onRegenerate={() => handleGenerateCode(b.id, codeType)}
+                      />
                     )}
-                    
-                    <div style={{ flex: 1, minWidth: '200px' }}>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{b.workers?.full_name}</h3>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        {formatDate(b.service_date)} at {formatTime(b.service_time)}
-                      </p>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        Payment: <span style={{ textTransform: 'capitalize' }}>{b.payment_method}</span> ({b.payment_status})
-                      </p>
-                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+        )}
 
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <span className={`badge ${getStatusClass(b.status)}`}>
-                        {b.status}
-                      </span>
+        {/* Review Modal with AnimatePresence */}
+        <AnimatePresence>
+          {selectedBooking && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 100, padding: '1.5rem', backdropFilter: 'blur(8px)'
+              }}
+              onClick={() => setSelectedBooking(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 20 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 22 }}
+                className="card glass"
+                style={{ maxWidth: '440px', width: '100%', gap: '1.25rem' }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Rate Cleaning Service</h3>
+                  <motion.button
+                    whileHover={{ scale: 1.1, rotate: 90 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ type: 'spring', stiffness: 300 }}
+                    onClick={() => setSelectedBooking(null)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                  >
+                    <X size={20} />
+                  </motion.button>
+                </div>
 
-                      {b.status === 'pending' && (
-                        <button onClick={() => handleCancelBooking(b)} className="btn btn-secondary btn-sm" style={{ color: 'var(--danger)' }}>
-                          Cancel
-                        </button>
-                      )}
+                <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    How was your experience with <strong>{selectedBooking.workers?.full_name}</strong>?
+                  </p>
 
-                      {b.status === 'completed' && b.payment_status === 'pending' && (
-                        <button onClick={() => openReviewModal(b)} className="btn btn-primary btn-sm">
-                          Rate Cleaner
-                        </button>
-                      )}
-                    </div>
+                  {/* Animated star rating */}
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', margin: '0.5rem 0' }}>
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <motion.button
+                        key={star}
+                        type="button"
+                        whileHover={{ scale: 1.3 }}
+                        whileTap={{ scale: 0.85 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+                        onClick={() => setRating(star)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                      >
+                        <Star
+                          size={32}
+                          color="#f59e0b"
+                          fill={star <= rating ? '#f59e0b' : 'transparent'}
+                        />
+                      </motion.button>
+                    ))}
                   </div>
 
-                  {activeCode && (
-                    <VerificationCodeCard
-                      bookingId={b.id}
-                      activeCode={activeCode}
-                      onRegenerate={() => handleGenerateCode(b.id, codeType)}
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label">Review Comment</label>
+                    <textarea
+                      className="form-input"
+                      rows={3}
+                      placeholder="Tell other homeowners about their work quality..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      required
                     />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
+                  </div>
 
-        {/* Review Modal dialog */}
-        {selectedBooking && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 100, padding: '1.5rem', backdropFilter: 'blur(8px)'
-          }}>
-            <div className="card glass slide-up" style={{ maxWidth: '440px', width: '100%', gap: '1.25rem' }} onClick={e => e.stopPropagation()}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Rate Cleaning Service</h3>
-                <button onClick={() => setSelectedBooking(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                  <X size={20} />
-                </button>
-              </div>
-
-              <form onSubmit={handleReviewSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  How was your experience with <strong>{selectedBooking.workers?.full_name}</strong>?
-                </p>
-
-                {/* Rating selection (1-5 stars) */}
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', margin: '0.5rem 0' }}>
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setRating(star)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-                    >
-                      <Star 
-                        size={32} 
-                        color="#f59e0b" 
-                        fill={star <= rating ? '#f59e0b' : 'transparent'} 
-                      />
-                    </button>
-                  ))}
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Review Comment</label>
-                  <textarea 
-                    className="form-input" 
-                    rows={3} 
-                    placeholder="Tell other homeowners about their work quality..."
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submittingReview}>
-                  {submittingReview ? <div className="spinner" style={{ width: '20px', height: '20px' }} /> : 'Submit Rating & Close'}
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ width: '100%' }}
+                    disabled={submittingReview}
+                  >
+                    {submittingReview ? <div className="spinner" style={{ width: '20px', height: '20px' }} /> : 'Submit Rating & Close'}
+                  </motion.button>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
     </HomeOwnerLayout>

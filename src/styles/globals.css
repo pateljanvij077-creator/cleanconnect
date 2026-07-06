@@ -819,3 +819,226 @@ tr:hover td {
   box-shadow: 0 0 20px 0 var(--primary-glow);
 }
 
+/* ==========================================================================
+   ADDITIONAL ANIMATION KEYFRAMES & INTERACTIVE EFFECTS
+   ========================================================================== */
+
+/* Bounce entrance for interactive elements */
+@keyframes bounceIn {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.08); opacity: 0.9; }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Neon glow pulse for active/featured elements */
+@keyframes neonPulse {
+  0%, 100% { box-shadow: 0 0 8px var(--primary-glow), 0 0 24px rgba(99,102,241,0.08); }
+  50% { box-shadow: 0 0 16px var(--primary-glow), 0 0 48px rgba(99,102,241,0.15); }
+}
+
+/* Shimmer slide for loading states */
+@keyframes shimmerSlide {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+/* Ripple effect for button clicks */
+@keyframes ripple {
+  0% { transform: scale(0); opacity: 0.6; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+/* Floating up & down for decorative elements */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+/* Gradient text shift animation */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Subtle card hover glow */
+.card.card-hover:hover {
+  border-color: rgba(99, 102, 241, 0.18);
+}
+
+/* Neon featured card */
+.card-featured {
+  animation: neonPulse 3s ease-in-out infinite;
+}
+
+/* Float animation utility */
+.float-y {
+  animation: floatY 4s ease-in-out infinite;
+}
+
+/* Animated gradient text */
+.gradient-text-animated {
+  background: linear-gradient(270deg, var(--primary), var(--secondary), #a855f7, var(--primary));
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 5s ease infinite;
+}
+
+/* Input focus glow ring */
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow), 0 1px 4px rgba(0,0,0,0.04);
+}
+
+/* Enhanced skeleton */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 0%,
+    var(--border-glass) 40%,
+    var(--bg-tertiary) 80%
+  );
+  background-size: 400px 100%;
+  animation: shimmerSlide 1.4s infinite linear;
+}
+
+/* Smooth stat counter number */
+.stat-number {
+  font-variant-numeric: tabular-nums;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hero section with animated gradient background */
+.hero-bg {
+  background: radial-gradient(ellipse at 20% 50%, rgba(99,102,241,0.08) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 20%, rgba(14,165,233,0.08) 0%, transparent 50%),
+              var(--bg-primary);
+}
+
+/* Chip/tag hover effect */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.chip:hover {
+  background: var(--primary-light);
+  border-color: rgba(99,102,241,0.2);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.chip.active {
+  background: var(--primary-light);
+  border-color: rgba(99,102,241,0.3);
+  color: var(--primary);
+}
+
+/* Page transition wrapper */
+.page-transition {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Subtle animated border for active sidebar items */
+@keyframes activePing {
+  0% { opacity: 0.6; transform: scaleY(0.6); }
+  100% { opacity: 0; transform: scaleY(1.5); }
+}
+
+/* Responsive padding helpers */
+.p-content {
+  padding: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .p-content {
+    padding: 1rem;
+  }
+}
+
+/* Scroll reveal helper */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Toast notification enhancement */
+.Toaster > div {
+  font-family: var(--font-sans) !important;
+}
+
+/* Dark mode form input fix */
+[data-theme='dark'] .form-input,
+[data-theme='dark'] .form-select,
+[data-theme='dark'] .form-textarea {
+  background: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-glass) !important;
+}
+
+[data-theme='dark'] .form-input::placeholder,
+[data-theme='dark'] .form-select::placeholder,
+[data-theme='dark'] .form-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .app-sidebar {
+  background: var(--bg-secondary) !important;
+  border-right: 1px solid var(--border-glass) !important;
+}
+
+[data-theme='dark'] .app-header {
+  background: rgba(11, 17, 32, 0.85) !important;
+}
+
+[data-theme='dark'] .mobile-bottom-nav {
+  background: rgba(11, 17, 32, 0.92) !important;
+}
+
+/* Interactive link underline animation */
+.link-animated {
+  position: relative;
+  text-decoration: none;
+}
+
+.link-animated::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--gradient-primary);
+  border-radius: 2px;
+  transition: width var(--transition-md);
+}
+
+.link-animated:hover::after {
+  width: 100%;
+}

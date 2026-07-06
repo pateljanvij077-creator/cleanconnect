@@ -5,9 +5,10 @@ import { getWorkerBookings, updateBookingStatus, confirmBookingCall } from '../.
 import { createNotification } from '../../services/notifications'
 import { updateWorkerGPSLocation } from '../../services/workers'
 import { formatDate, formatTime } from '../../utils/helpers'
-import { Phone, Check, X, AlertCircle } from 'lucide-react'
+import { Phone, Check, X, AlertCircle, ClipboardList } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getCurrentPosition, getLocationDetails } from '../../utils/gps'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function BookingRequests() {
   const { worker } = useAuth()
@@ -41,7 +42,7 @@ export default function BookingRequests() {
     try {
       await updateBookingStatus(booking.id, 'accepted', { call_confirmed: true })
       toast.success('Booking request accepted!')
-      
+
       // Refresh GPS when accepting work
       try {
         const coords = await getCurrentPosition()
@@ -76,11 +77,11 @@ export default function BookingRequests() {
     if (reason === null) return // cancelled prompt
 
     try {
-      await updateBookingStatus(booking.id, 'rejected', { 
-        cancellation_reason: reason || 'Cleaner is unavailable' 
+      await updateBookingStatus(booking.id, 'rejected', {
+        cancellation_reason: reason || 'Cleaner is unavailable'
       })
       toast.success('Booking request rejected')
-      
+
       // Notify Homeowner
       await createNotification(
         booking.homeowners.id,
@@ -98,81 +99,152 @@ export default function BookingRequests() {
 
   return (
     <WorkerLayout>
-      <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Booking Requests</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px', margin: '0 auto' }}>
 
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+        >
+          <div style={{
+            background: 'var(--primary-light)',
+            padding: '10px',
+            borderRadius: '12px',
+            display: 'flex',
+            color: 'var(--primary)'
+          }}>
+            <ClipboardList size={22} />
+          </div>
+          <div>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Booking Requests</h2>
+            {!loading && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                {requests.length} pending request{requests.length !== 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+        </motion.div>
+
+        {/* States */}
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
-            <div className="spinner" />
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            style={{ display: 'flex', justifyContent: 'center', flexDirection: 'column', alignItems: 'center', padding: '3rem', gap: '1rem' }}
+          >
+            <div className="spinner" style={{ width: '40px', height: '40px' }} />
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading requests...</p>
+          </motion.div>
         ) : requests.length === 0 ? (
-          <div className="card glass flex-center" style={{ padding: '3rem', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}>
-            <AlertCircle size={36} color="var(--text-muted)" />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>No Pending Requests</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              Homeowner service request invites will show up here.
+          <motion.div
+            initial={{ opacity: 0, scale: 0.93 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+            className="card glass flex-center"
+            style={{ padding: '4rem 2rem', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}
+          >
+            <motion.div
+              animate={{ rotate: [0, -5, 5, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
+            >
+              <AlertCircle size={48} color="var(--text-muted)" />
+            </motion.div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>No Pending Requests</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '300px' }}>
+              Homeowner service request invites will appear here when you receive them.
             </p>
-          </div>
+          </motion.div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {requests.map(r => (
-              <div key={r.id} className="card glass" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{r.homeowners?.full_name}</h3>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Requested: {formatDate(r.service_date)} at {formatTime(r.service_time)}
-                    </p>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                      📍 <strong>Address:</strong> {r.address}
-                    </p>
-                    {r.notes && (
-                      <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '4px', marginTop: '0.5rem' }}>
-                        📝 <strong>Notes:</strong> {r.notes}
+            <AnimatePresence mode="popLayout">
+              {requests.map((r, idx) => (
+                <motion.div
+                  key={r.id}
+                  layout
+                  initial={{ opacity: 0, y: 24, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, x: -60, scale: 0.94 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 120,
+                    damping: 16,
+                    delay: idx * 0.07
+                  }}
+                  className="card glass"
+                  style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{r.homeowners?.full_name}</h3>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Requested: {formatDate(r.service_date)} at {formatTime(r.service_time)}
                       </p>
-                    )}
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                        📍 <strong>Address:</strong> {r.address}
+                      </p>
+                      {r.notes && (
+                        <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '6px 10px', borderRadius: '6px', marginTop: '0.5rem' }}>
+                          📝 <strong>Notes:</strong> {r.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    <motion.button
+                      whileHover={{ scale: 1.04, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleCall(r)}
+                      className="btn btn-secondary"
+                      style={{ gap: '6px' }}
+                    >
+                      <Phone size={16} /> Call Home Owner
+                    </motion.button>
                   </div>
 
-                  <button onClick={() => handleCall(r)} className="btn btn-secondary" style={{ gap: '6px' }}>
-                    <Phone size={16} /> Call Home Owner
-                  </button>
-                </div>
-
-                <div style={{ borderTop: '1px dashed var(--border-subtle)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                  {/* Call confirmation checkbox */}
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={!!callConfirmedMap[r.id]} 
-                      onChange={(e) => setCallConfirmedMap({ ...callConfirmedMap, [r.id]: e.target.checked })}
-                      style={{ accentColor: 'var(--primary)' }}
-                    />
-                    <span style={{ color: 'var(--text-secondary)' }}>
-                      I have called & confirmed rates with the homeowner
-                    </span>
-                  </label>
-
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button 
-                      onClick={() => handleReject(r)} 
-                      className="btn btn-secondary btn-sm"
-                      style={{ color: 'var(--danger)', gap: '4px' }}
+                  <div style={{ borderTop: '1px dashed var(--border-glass)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    {/* Call confirmation checkbox */}
+                    <motion.label
+                      whileHover={{ scale: 1.01 }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px' }}
                     >
-                      <X size={14} /> Reject
-                    </button>
-                    <button 
-                      onClick={() => handleAccept(r)} 
-                      className="btn btn-primary btn-sm"
-                      disabled={!callConfirmedMap[r.id]}
-                      style={{ gap: '4px' }}
-                    >
-                      <Check size={14} /> Accept Booking
-                    </button>
+                      <input
+                        type="checkbox"
+                        checked={!!callConfirmedMap[r.id]}
+                        onChange={(e) => setCallConfirmedMap({ ...callConfirmedMap, [r.id]: e.target.checked })}
+                        style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
+                      />
+                      <span style={{ color: 'var(--text-secondary)' }}>
+                        I have called & confirmed rates with the homeowner
+                      </span>
+                    </motion.label>
+
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <motion.button
+                        whileHover={{ scale: 1.04, y: -1 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleReject(r)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ color: 'var(--danger)', gap: '4px', borderColor: 'rgba(239,68,68,0.2)' }}
+                      >
+                        <X size={14} /> Reject
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: callConfirmedMap[r.id] ? 1.04 : 1, y: callConfirmedMap[r.id] ? -1 : 0 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleAccept(r)}
+                        className="btn btn-primary btn-sm"
+                        disabled={!callConfirmedMap[r.id]}
+                        style={{ gap: '4px' }}
+                      >
+                        <Check size={14} /> Accept Booking
+                      </motion.button>
+                    </div>
                   </div>
-                </div>
 
-              </div>
-            ))}
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
 

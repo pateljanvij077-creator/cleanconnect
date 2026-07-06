@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth'
 import WorkerCard from '../../components/common/WorkerCard'
 import { Heart, HeartCrack } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function Favourites() {
   const navigate = useNavigate()
@@ -35,35 +36,99 @@ export default function Favourites() {
 
   return (
     <HomeOwnerLayout>
-      <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Saved Cleaners</h2>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
+        {/* Page Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+        >
+          <motion.div
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 3 }}
+          >
+            <Heart size={28} color="var(--danger)" fill="var(--danger)" />
+          </motion.div>
+          <div>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Saved Cleaners</h2>
+            {!loading && favoritesList.length > 0 && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                {favoritesList.length} cleaner{favoritesList.length !== 1 ? 's' : ''} saved
+              </p>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Content */}
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
-            <div className="spinner" />
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            style={{ display: 'flex', justifyContent: 'center', flexDirection: 'column', alignItems: 'center', padding: '3rem', gap: '1rem' }}
+          >
+            <div className="spinner" style={{ width: '40px', height: '40px' }} />
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading favourites...</p>
+          </motion.div>
         ) : favoritesList.length === 0 ? (
-          <div className="card glass flex-center" style={{ padding: '3rem', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}>
-            <HeartCrack size={36} color="var(--text-muted)" />
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>No Saved Cleaners</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              Cleaner profiles you save will appear here for fast scheduling.
+          <motion.div
+            initial={{ opacity: 0, scale: 0.93 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+            className="card glass flex-center"
+            style={{ padding: '4rem 2rem', flexDirection: 'column', gap: '1rem', textAlign: 'center' }}
+          >
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <HeartCrack size={48} color="var(--text-muted)" />
+            </motion.div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>No Saved Cleaners</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '300px' }}>
+              Tap the ❤️ heart on any cleaner card to save them here for fast scheduling.
             </p>
-          </div>
+            <motion.button
+              whileHover={{ scale: 1.04, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate('/homeowner/dashboard')}
+              className="btn btn-primary"
+              style={{ marginTop: '0.5rem' }}
+            >
+              Find Cleaners
+            </motion.button>
+          </motion.div>
         ) : (
-          <div className="grid-3">
-            {favoritesList.map(w => (
-              <WorkerCard 
-                key={w.id}
-                worker={w}
-                isFavorited={true}
-                onFavoriteToggle={handleFavoriteToggle}
-                onBook={(id) => navigate(`/homeowner/book/${id}`)}
-                onViewProfile={(id) => navigate(`/homeowner/worker/${id}`)}
-              />
-            ))}
-          </div>
+          <motion.div layout className="grid-3">
+            <AnimatePresence mode="popLayout">
+              {favoritesList.map((w, idx) => (
+                <motion.div
+                  key={w.id}
+                  layout
+                  initial={{ opacity: 0, y: 24, scale: 0.93 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.88, y: -10 }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 120,
+                    damping: 15,
+                    delay: idx * 0.06
+                  }}
+                >
+                  <WorkerCard
+                    worker={w}
+                    isFavorited={true}
+                    onFavoriteToggle={handleFavoriteToggle}
+                    onBook={(id) => navigate(`/homeowner/book/${id}`)}
+                    onViewProfile={(id) => navigate(`/homeowner/worker/${id}`)}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
         )}
+
       </div>
     </HomeOwnerLayout>
   )
