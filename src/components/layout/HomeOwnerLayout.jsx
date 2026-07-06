@@ -207,7 +207,10 @@ export default function HomeOwnerLayout({ children }) {
         </nav>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Theme toggle removed */}
+          <button onClick={toggleTheme} className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start' }}>
+            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+            <span>{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
+          </button>
           <button onClick={handleLogout} className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'flex-start', color: 'var(--danger)' }}>
             <LogOut size={16} />
             <span>Logout</span>

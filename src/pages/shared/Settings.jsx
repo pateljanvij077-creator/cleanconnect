@@ -38,14 +38,21 @@ function SettingsContent() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '640px', margin: '0 auto' }} className="fade-in">
       <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Account Settings</h2>
 
-      {/* Preferences card */}
       <div className="card glass" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
           <SettingsIcon size={18} /> Global Preferences
         </h3>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>App Interface Theme</span>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Default Premium Light</span>
+          <button 
+            type="button"
+            onClick={toggleTheme} 
+            className="btn btn-secondary btn-sm" 
+            style={{ display: 'flex', gap: '6px', alignItems: 'center' }}
+          >
+            {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+            <span>{theme === 'light' ? 'Switch to Dark' : 'Switch to Light'}</span>
+          </button>
         </div>
       </div>
 
