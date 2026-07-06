@@ -3,7 +3,8 @@ import WorkerLayout from '../../components/layout/WorkerLayout'
 import { useAuth } from '../../hooks/useAuth'
 import { getWorkerBookings, updateBookingStatus, verifyBookingCodeRPC, deleteCode } from '../../services/bookings'
 import { createNotification } from '../../services/notifications'
-import { getCurrentPosition } from '../../utils/gps'
+import { updateWorkerGPSLocation } from '../../services/workers'
+import { getCurrentPosition, getLocationDetails } from '../../utils/gps'
 import { formatDate, formatTime } from '../../utils/helpers'
 import { CheckCircle2, Play, Phone, MessageCircle, Lock, RotateCcw, X, AlertTriangle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
@@ -311,6 +312,20 @@ export default function UpcomingJobs() {
 
       // Status is already updated by the RPC — just notify homeowner & refresh
       await createNotification(job.homeowners.user_id, notifTitle, notifBody, 'booking', { bookingId: job.id })
+
+      // Refresh GPS when accepting work / starting work / finishing work
+      try {
+        const coords = await getCurrentPosition()
+        const details = await getLocationDetails(coords.lat, coords.lng)
+        await updateWorkerGPSLocation(worker.id, {
+          latitude: coords.lat,
+          longitude: coords.lng,
+          cityName: details.city,
+          areaName: details.area
+        })
+      } catch (gpsErr) {
+        console.error('Failed to update GPS on job state change:', gpsErr)
+      }
 
       if (nextStatus === 'completed') {
         setJobs(prev => prev.filter(j => j.id !== job.id))

@@ -171,3 +171,23 @@ export async function uploadUpiQr(workerId, file) {
   await updateWorkerProfile(workerId, { upi_qr_url: publicUrl })
   return publicUrl
 }
+
+/**
+ * Update worker's live GPS coordinates in the database
+ */
+export async function updateWorkerGPSLocation(workerId, { latitude, longitude, cityName, areaName }) {
+  const { data, error } = await supabase
+    .from('workers')
+    .update({
+      latitude,
+      longitude,
+      current_city: cityName || null,
+      current_area: areaName || null,
+      last_location_update: new Date().toISOString()
+    })
+    .eq('id', workerId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}

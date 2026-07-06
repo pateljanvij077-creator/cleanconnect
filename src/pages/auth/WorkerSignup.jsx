@@ -8,7 +8,7 @@ import { signUp, signIn, createWorkerProfile, getRoles } from '../../services/au
 import { getStates, getCities, getAreas, searchSocieties, findOrCreateState, findOrCreateCity, findOrCreateArea, findOrCreateSociety } from '../../services/locations'
 import LocationPicker from '../../components/maps/LocationPicker'
 import { toast } from 'react-hot-toast'
-import { getLocationDetails } from '../../utils/gps'
+import { getLocationDetails, getCurrentPosition } from '../../utils/gps'
 
 export default function WorkerSignup() {
   const navigate = useNavigate()
@@ -182,6 +182,38 @@ export default function WorkerSignup() {
       console.error('Error parsing geocoded details:', err)
     }
   }
+
+  const detectGpsLocation = async () => {
+    setLoading(true)
+    const toastId = toast.loading('Detecting GPS location...')
+    try {
+      const coords = await getCurrentPosition()
+      const details = await getLocationDetails(coords.lat, coords.lng)
+      
+      setCurrentLoc(prev => ({
+        ...prev,
+        latitude: coords.lat,
+        longitude: coords.lng,
+        address: details.address || '',
+        stateName: details.state || '',
+        cityName: details.city || '',
+        areaName: details.area || '',
+        societyName: details.society || ''
+      }))
+      toast.success('Location detected successfully!', { id: toastId })
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to get GPS coordinates. Please select manually.', { id: toastId })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (step === 3) {
+      detectGpsLocation()
+    }
+  }, [step])
 
   const removeLocationRow = (index) => {
     setLocations(locations.filter((_, idx) => idx !== index))
@@ -479,7 +511,17 @@ export default function WorkerSignup() {
           {/* STEP 3: Multi Work-locations configuration */}
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Configure Work Locations</h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Configure Work Locations</h4>
+                <button 
+                  type="button" 
+                  onClick={detectGpsLocation} 
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '11px' }}
+                >
+                  <MapPin size={12} /> Detect Current GPS
+                </button>
+              </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 Select multiple cities, areas or societies. Unlimited target locations allowed.
               </p>

@@ -4,11 +4,12 @@ import WorkerLayout from '../../components/layout/WorkerLayout'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../supabase/client'
 import { getWorkerBookings } from '../../services/bookings'
-import { updateWorkerAvailability } from '../../services/workers'
+import { updateWorkerAvailability, updateWorkerGPSLocation } from '../../services/workers'
 import { formatDate, formatCurrency, getStatusClass } from '../../utils/helpers'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Briefcase, CheckCircle, ShieldAlert, Star, ToggleLeft, Clock } from 'lucide-react'
+import { Briefcase, CheckCircle, ShieldAlert, Star, ToggleLeft, Clock, MapPin } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { getCurrentPosition, getLocationDetails } from '../../utils/gps'
 
 export default function WorkerDashboard() {
   const navigate = useNavigate()
@@ -20,6 +21,26 @@ export default function WorkerDashboard() {
   const [loading, setLoading] = useState(true)
   const [isAvailable, setIsAvailable] = useState(worker?.is_available || false)
   const [availabilityStatus, setAvailabilityStatus] = useState(worker?.availability_status || 'offline')
+
+  // Auto-refresh GPS on app launch (Dashboard mount)
+  useEffect(() => {
+    if (worker) {
+      getCurrentPosition()
+        .then(async (coords) => {
+          const details = await getLocationDetails(coords.lat, coords.lng)
+          await updateWorkerGPSLocation(worker.id, {
+            latitude: coords.lat,
+            longitude: coords.lng,
+            cityName: details.city,
+            areaName: details.area
+          })
+          await refreshProfile()
+        })
+        .catch(err => {
+          console.error('Failed to auto-update worker GPS on launch:', err)
+        })
+    }
+  }, [worker?.id])
 
   useEffect(() => {
     if (worker) {
@@ -51,6 +72,26 @@ export default function WorkerDashboard() {
       setIsAvailable(nextAvailable)
       setAvailabilityStatus(nextStatus)
       toast.success(`Availability updated to ${nextStatus.toUpperCase()}`)
+
+      // Refresh GPS when coming online
+      if (nextAvailable) {
+        toast.loading('Refreshing GPS location...', { id: 'gps-refresh' })
+        try {
+          const coords = await getCurrentPosition()
+          const details = await getLocationDetails(coords.lat, coords.lng)
+          await updateWorkerGPSLocation(worker.id, {
+            latitude: coords.lat,
+            longitude: coords.lng,
+            cityName: details.city,
+            areaName: details.area
+          })
+          toast.success('GPS location refreshed!', { id: 'gps-refresh' })
+        } catch (gpsErr) {
+          console.error(gpsErr)
+          toast.error('Could not refresh GPS location.', { id: 'gps-refresh' })
+        }
+      }
+      
       await refreshProfile()
     } catch (err) {
       toast.error('Failed to update status')

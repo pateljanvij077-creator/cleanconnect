@@ -3,9 +3,11 @@ import WorkerLayout from '../../components/layout/WorkerLayout'
 import { useAuth } from '../../hooks/useAuth'
 import { getWorkerBookings, updateBookingStatus, confirmBookingCall } from '../../services/bookings'
 import { createNotification } from '../../services/notifications'
+import { updateWorkerGPSLocation } from '../../services/workers'
 import { formatDate, formatTime } from '../../utils/helpers'
 import { Phone, Check, X, AlertCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { getCurrentPosition, getLocationDetails } from '../../utils/gps'
 
 export default function BookingRequests() {
   const { worker } = useAuth()
@@ -40,6 +42,20 @@ export default function BookingRequests() {
       await updateBookingStatus(booking.id, 'accepted', { call_confirmed: true })
       toast.success('Booking request accepted!')
       
+      // Refresh GPS when accepting work
+      try {
+        const coords = await getCurrentPosition()
+        const details = await getLocationDetails(coords.lat, coords.lng)
+        await updateWorkerGPSLocation(worker.id, {
+          latitude: coords.lat,
+          longitude: coords.lng,
+          cityName: details.city,
+          areaName: details.area
+        })
+      } catch (gpsErr) {
+        console.error('Failed to update GPS on accept:', gpsErr)
+      }
+
       // Notify Homeowner
       await createNotification(
         booking.homeowners.id,
