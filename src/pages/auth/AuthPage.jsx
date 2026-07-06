@@ -5,6 +5,7 @@ import { signIn } from '../../services/auth'
 import { getUserProfile } from '../../services/auth'
 import { supabase } from '../../supabase/client'
 import { toast } from 'react-hot-toast'
+import { motion } from 'framer-motion'
 
 export default function AuthPage() {
   const navigate = useNavigate()
@@ -57,35 +58,50 @@ export default function AuthPage() {
 
   return (
     <div style={{
+      position: 'relative',
       display: 'flex',
       minHeight: '100vh',
       background: 'var(--bg-primary)',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '1.5rem'
+      padding: '1.5rem',
+      overflow: 'hidden'
     }}>
-      <div 
-        className="card glass slide-up" 
+      {/* Moving Blobs */}
+      <div className="floating-blob" style={{ background: 'var(--primary)', top: '10%', left: '10%', opacity: 0.08 }} />
+      <div className="floating-blob" style={{ background: 'var(--secondary)', bottom: '10%', right: '10%', opacity: 0.08, animationDelay: '-8s' }} />
+
+      <motion.div 
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+        className="card glass glass-glow" 
         style={{ 
           width: '100%', 
           maxWidth: '440px', 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: '1.5rem' 
+          gap: '1.5rem',
+          zIndex: 1
         }}
       >
         {/* Logo */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', textAlign: 'center' }}>
-          <div style={{
-            background: 'var(--gradient-primary)',
-            padding: '12px',
-            borderRadius: '16px',
-            display: 'flex',
-            color: 'white',
-            boxShadow: '0 4px 20px 0 var(--primary-glow)'
-          }}>
+          <motion.div 
+            whileHover={{ scale: 1.1, rotate: 10 }}
+            whileTap={{ scale: 0.95 }}
+            style={{
+              background: 'var(--gradient-primary)',
+              padding: '12px',
+              borderRadius: '16px',
+              display: 'flex',
+              color: 'white',
+              boxShadow: '0 4px 20px 0 var(--primary-glow)',
+              cursor: 'pointer'
+            }}
+          >
             <Sparkles size={28} />
-          </div>
+          </motion.div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Welcome Back</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             Find verified cleaners or receive job bookings
@@ -161,14 +177,16 @@ export default function AuthPage() {
             </a>
           </div>
 
-          <button 
+          <motion.button 
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
             type="submit" 
             className="btn btn-primary" 
             style={{ width: '100%', marginTop: '0.5rem' }}
             disabled={loading}
           >
             {loading ? <div className="spinner" style={{ width: '20px', height: '20px' }} /> : 'Login'}
-          </button>
+          </motion.button>
         </form>
 
         <div style={{ textAlign: 'center', fontSize: '0.9rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', marginTop: '0.5rem' }}>
@@ -177,7 +195,7 @@ export default function AuthPage() {
             Create Account
           </Link>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
