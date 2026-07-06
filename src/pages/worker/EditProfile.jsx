@@ -10,9 +10,10 @@ import {
   uploadWorkerPhoto, 
   uploadUpiQr 
 } from '../../services/workers'
-import { getStates, getCities, getAreas } from '../../services/locations'
+import { getStates, getCities, getAreas, findOrCreateState, findOrCreateCity, findOrCreateArea } from '../../services/locations'
 import { toast } from 'react-hot-toast'
-import { ArrowLeft, Trash2, Plus, FileUp, QrCode } from 'lucide-react'
+import { ArrowLeft, Trash2, Plus, FileUp, QrCode, MapPin } from 'lucide-react'
+import { getCurrentPosition, getLocationDetails } from '../../utils/gps'
 
 export default function EditProfile() {
   const navigate = useNavigate()
@@ -91,6 +92,54 @@ export default function EditProfile() {
       getAreas(selLoc.cityId).then(setAreas)
     }
   }, [selLoc.cityId])
+
+  const handleDetectLocation = async () => {
+    toast.loading('Detecting location...', { id: 'gps-profile' })
+    try {
+      const coords = await getCurrentPosition()
+      const details = await getLocationDetails(coords.lat, coords.lng)
+      
+      if (!details.state || !details.city || !details.area) {
+        throw new Error('Could not resolve location details from GPS')
+      }
+
+      // 1. Find or create State
+      const resolvedState = await findOrCreateState(details.state)
+      
+      // Refresh states dropdown list
+      const updatedStates = await getStates()
+      setStates(updatedStates)
+
+      // 2. Find or create City
+      const resolvedCity = await findOrCreateCity(details.city, resolvedState.id)
+      
+      // Refresh cities dropdown list
+      const updatedCities = await getCities(resolvedState.id)
+      setCities(updatedCities)
+
+      // 3. Find or create Area
+      const resolvedArea = await findOrCreateArea(details.area, resolvedCity.id)
+      
+      // Refresh areas dropdown list
+      const updatedAreas = await getAreas(resolvedCity.id)
+      setAreas(updatedAreas)
+
+      setSelLoc({
+        stateId: resolvedState.id,
+        cityId: resolvedCity.id,
+        areaId: resolvedArea.id,
+        societyName: details.society || 'All Societies',
+        latitude: coords.lat,
+        longitude: coords.lng,
+        address: details.address || ''
+      })
+
+      toast.success('Location auto-detected and filled!', { id: 'gps-profile' })
+    } catch (err) {
+      console.error(err)
+      toast.error(err.message || 'Failed to detect location. Please select manually.', { id: 'gps-profile' })
+    }
+  }
 
   const handleAddLocation = async () => {
     if (!selLoc.stateId || !selLoc.cityId || !selLoc.areaId) {
@@ -307,7 +356,17 @@ export default function EditProfile() {
 
           {/* Location matrix list adding manager */}
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <h4 style={{ fontSize: '1rem', fontWeight: 800 }}>Manage Work Locations</h4>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Manage Work Locations</h4>
+              <button 
+                type="button" 
+                onClick={handleDetectLocation} 
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '11px' }}
+              >
+                <MapPin size={12} /> Detect Current GPS
+              </button>
+            </div>
 
             <div className="grid-3" style={{ background: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
               <select className="form-select" value={selLoc.stateId} onChange={e => setSelLoc({ ...selLoc, stateId: e.target.value })}>
