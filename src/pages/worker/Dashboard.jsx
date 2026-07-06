@@ -98,6 +98,29 @@ export default function WorkerDashboard() {
     }
   }
 
+  const manualGpsRefresh = async () => {
+    const toastId = toast.loading('Refreshing GPS location...')
+    try {
+      const coords = await getCurrentPosition()
+      const details = await getLocationDetails(coords.lat, coords.lng)
+      await updateWorkerGPSLocation(worker.id, {
+        latitude: coords.lat,
+        longitude: coords.lng,
+        cityName: details.city,
+        areaName: details.area
+      })
+      toast.success('GPS location updated successfully!', { id: toastId })
+      await refreshProfile()
+    } catch (err) {
+      console.error(err)
+      if (err.code === 1) {
+        toast.error('Geolocation permission denied. Please allow location permissions in your browser settings.', { id: toastId })
+      } else {
+        toast.error(err.message || 'Failed to get GPS location. Please try again.', { id: toastId })
+      }
+    }
+  }
+
   // Pre-process bookings data for Recharts (bookings per day)
   const getChartData = () => {
     const counts = {}
@@ -121,15 +144,26 @@ export default function WorkerDashboard() {
             </p>
           </div>
 
-          {/* Status selector */}
-          <div className="card glass flex-center" style={{ padding: '0.5rem 1rem', gap: '0.5rem' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700 }}>Duty State:</span>
-            <select className="form-select" style={{ padding: '4px 8px', fontSize: '12px', width: 'auto' }} value={availabilityStatus} onChange={handleStatusChange}>
-              <option value="available">🟢 Available for Work</option>
-              <option value="busy">🟡 Currently Busy</option>
-              <option value="on_leave">🟠 On Leave</option>
-              <option value="offline">🔴 Offline</option>
-            </select>
+          {/* Status selector & Refresh GPS button */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button 
+              type="button" 
+              onClick={manualGpsRefresh} 
+              className="btn btn-secondary flex-center" 
+              style={{ padding: '8px 12px', gap: '6px', fontSize: '12px', height: '36px', display: 'flex', alignItems: 'center' }}
+            >
+              <MapPin size={14} /> Refresh GPS
+            </button>
+
+            <div className="card glass flex-center" style={{ padding: '0.5rem 1rem', gap: '0.5rem', margin: 0, height: '36px', display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700 }}>Duty State:</span>
+              <select className="form-select" style={{ padding: '4px 8px', fontSize: '12px', width: 'auto', background: 'none', border: 'none', color: 'var(--text)' }} value={availabilityStatus} onChange={handleStatusChange}>
+                <option value="available">🟢 Available for Work</option>
+                <option value="busy">🟡 Currently Busy</option>
+                <option value="on_leave">🟠 On Leave</option>
+                <option value="offline">🔴 Offline</option>
+              </select>
+            </div>
           </div>
         </div>
 

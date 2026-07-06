@@ -137,7 +137,11 @@ export default function EditProfile() {
       toast.success('Location auto-detected and filled!', { id: 'gps-profile' })
     } catch (err) {
       console.error(err)
-      toast.error(err.message || 'Failed to detect location. Please select manually.', { id: 'gps-profile' })
+      if (err.code === 1) {
+        toast.error('Geolocation permission denied. Please allow location permissions in your browser settings.', { id: 'gps-profile' })
+      } else {
+        toast.error(err.message || 'Failed to detect location. Please select manually.', { id: 'gps-profile' })
+      }
     }
   }
 

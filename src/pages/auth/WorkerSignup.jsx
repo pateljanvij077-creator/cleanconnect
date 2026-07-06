@@ -203,7 +203,11 @@ export default function WorkerSignup() {
       toast.success('Location detected successfully!', { id: toastId })
     } catch (err) {
       console.error(err)
-      toast.error('Failed to get GPS coordinates. Please select manually.', { id: toastId })
+      if (err.code === 1) {
+        toast.error('Geolocation permission denied. Please allow location permissions in your browser settings.', { id: toastId })
+      } else {
+        toast.error('Failed to get GPS coordinates. Please select manually.', { id: toastId })
+      }
     } finally {
       setLoading(false)
     }
