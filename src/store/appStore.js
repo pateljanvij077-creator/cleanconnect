@@ -7,7 +7,7 @@ export const useAppStore = create(
       theme: 'light',
       notificationCount: 0,
       loading: false,
-      toggleTheme: () => set({ theme: 'light' }),
+      toggleTheme: () => set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
       setNotificationCount: (count) => set({ notificationCount: count }),
       setLoading: (loading) => set({ loading }),
     }),

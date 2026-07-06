@@ -60,25 +60,26 @@
 }
 
 [data-theme='dark'] {
-  /* Overridden dark theme variables to mirror light theme variables for complete white-only enforcement */
-  --bg-primary: #f6f8fb;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #eff2f6;
-  --bg-glass: rgba(255, 255, 255, 0.8);
-  --bg-glass-hover: rgba(255, 255, 255, 0.95);
-  --border-glass: rgba(99, 102, 241, 0.08);
-  --border-subtle: rgba(15, 23, 42, 0.05);
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
+  --bg-primary: #060913;
+  --bg-secondary: #0b1120;
+  --bg-tertiary: #131a2e;
+  --bg-glass: rgba(11, 17, 32, 0.7);
+  --bg-glass-hover: rgba(11, 17, 32, 0.85);
+  --border-glass: rgba(99, 102, 241, 0.15);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
   --text-muted: #64748b;
-  --text-inverse: #ffffff;
-  --primary-light: rgba(99, 102, 241, 0.06);
-  --primary-glow: rgba(99, 102, 241, 0.15);
-  --shadow-sm: 0 2px 4px 0 rgba(15, 23, 42, 0.02);
-  --shadow-md: 0 4px 12px -2px rgba(99, 102, 241, 0.04);
-  --shadow-lg: 0 12px 30px -8px rgba(99, 102, 241, 0.08);
-  --shadow-glass: 0 8px 32px 0 rgba(99, 102, 241, 0.04);
-  --gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+  --text-inverse: #060913;
+  --primary: #818cf8;
+  --primary-hover: #6366f1;
+  --primary-light: rgba(129, 140, 248, 0.12);
+  --primary-glow: rgba(129, 140, 248, 0.3);
+  --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px -2px rgba(99, 102, 241, 0.2);
+  --shadow-lg: 0 12px 30px -8px rgba(99, 102, 241, 0.3);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --gradient-card: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.85) 100%);
 }
 
 /* ==========================================================================
@@ -790,4 +791,31 @@ tr:hover td {
 .staggered-grid > *:nth-child(4) { animation-delay: 0.2s; }
 .staggered-grid > *:nth-child(5) { animation-delay: 0.25s; }
 .staggered-grid > *:nth-child(6) { animation-delay: 0.3s; }
+
+/* Visual utilities for animations and glassmorphic depth */
+.floating-blob {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: 0;
+  animation: floatBlob 20s infinite ease-in-out;
+}
+
+@keyframes floatBlob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-40px) scale(1.1); }
+}
+
+.glass-glow {
+  transition: transform var(--transition-slow), box-shadow var(--transition-slow), border-color var(--transition-slow);
+}
+
+.glass-glow:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 20px 0 var(--primary-glow);
+}
 
