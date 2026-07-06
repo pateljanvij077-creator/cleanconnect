@@ -156,26 +156,14 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'message', 'Unauthorized: You are not the assigned cleaner.');
     END IF;
 
-    -- Distance check (100 meters limit, conditional on coordinates availability)
+    -- Distance check (conditional on coordinates availability)
+    -- Removed 100 meters limit check as per request
     IF v_booking_record.latitude IS NOT NULL AND v_booking_record.longitude IS NOT NULL 
        AND p_cleaner_lat IS NOT NULL AND p_cleaner_lng IS NOT NULL THEN
         v_distance := calculate_distance(
             v_booking_record.latitude, v_booking_record.longitude,
             p_cleaner_lat, p_cleaner_lng
         );
-
-        IF v_distance > 100 THEN
-            INSERT INTO activity_logs (user_id, action, entity_type, entity_id, metadata)
-            VALUES (auth.uid(), 'verification_failed', 'booking', p_booking_id, 
-                jsonb_build_object(
-                    'error', 'Distance limit exceeded',
-                    'distance_meters', v_distance,
-                    'type', v_code_record.code_type,
-                    'gps', jsonb_build_object('lat', p_cleaner_lat, 'lng', p_cleaner_lng)
-                )
-            );
-            RETURN jsonb_build_object('success', false, 'message', 'You must be within 100 meters of the booking location.');
-        END IF;
     ELSE
         v_distance := NULL;
         INSERT INTO activity_logs (user_id, action, entity_type, entity_id, metadata)

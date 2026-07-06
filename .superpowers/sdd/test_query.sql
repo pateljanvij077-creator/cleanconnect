@@ -55,17 +55,24 @@ BEGIN
         RAISE EXCEPTION 'Test 2 failed: activity log not found for invalid code';
     END IF;
 
-    -- Test 3: verify_booking_code - distance limit exceeded
+    -- Test 3: verify_booking_code - distance limit check removed (should succeed even if far away)
     v_res := verify_booking_code(v_booking_id, '123456', 13.9716, 78.5946);
-    RAISE NOTICE 'Distance limit result: %', v_res;
-    IF (v_res->>'success')::boolean = true OR (v_res->>'message') NOT LIKE 'You must be within 100 meters%' THEN
-        RAISE EXCEPTION 'Test 3 failed: expected failure for distance limit';
+    RAISE NOTICE 'Distance limit result (expected success): %', v_res;
+    IF (v_res->>'success')::boolean = false OR (v_res->>'message') != 'Verification successful.' THEN
+        RAISE EXCEPTION 'Test 3 failed: expected success since distance limit check is removed';
     END IF;
 
-    SELECT * INTO v_log FROM activity_logs WHERE entity_id = v_booking_id AND action = 'verification_failed' AND metadata->>'error' = 'Distance limit exceeded';
+    SELECT * INTO v_log FROM activity_logs WHERE entity_id = v_booking_id AND action = 'verification_success' AND metadata->>'type' = 'start';
     IF v_log IS NULL THEN
-        RAISE EXCEPTION 'Test 3 failed: activity log not found for distance limit';
+        RAISE EXCEPTION 'Test 3 failed: activity log not found for success';
     END IF;
+
+    -- Re-insert code and restore booking status to arrived for subsequent tests
+    DELETE FROM booking_verification_codes WHERE booking_id = v_booking_id;
+    INSERT INTO booking_verification_codes (booking_id, hashed_code, expiry_time, code_type)
+    VALUES (v_booking_id, encode(digest('123456', 'sha256'), 'hex'), NOW() + interval '10 minutes', 'start')
+    RETURNING id INTO v_code_id;
+    UPDATE bookings SET status = 'arrived', check_in_time = NULL, check_in_lat = NULL, check_in_lng = NULL WHERE id = v_booking_id;
 
     -- Test 3a: verify_booking_code - distance check skipped when cleaner coordinates are NULL
     -- Calling with NULL cleaner coordinates should skip distance check and succeed
