@@ -1,13 +1,21 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import WorkerLayout from '../../components/layout/WorkerLayout'
 import { useAuth } from '../../hooks/useAuth'
 import { formatCurrency, formatDate } from '../../utils/helpers'
-import { Star, ShieldCheck, BadgeAlert, Plus, Edit3 } from 'lucide-react'
+import { Star, ShieldCheck, BadgeAlert, Plus, Edit3, MapPin } from 'lucide-react'
+import { getWorkerLocations } from '../../services/workers'
 
 export default function WorkerProfile() {
   const navigate = useNavigate()
   const { worker } = useAuth()
+  const [locations, setLocations] = useState([])
+
+  useEffect(() => {
+    if (worker) {
+      getWorkerLocations(worker.id).then(setLocations).catch(err => console.error(err))
+    }
+  }, [worker])
 
   if (!worker) return null
 
@@ -81,6 +89,55 @@ export default function WorkerProfile() {
         <div className="card glass">
           <h3 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '0.5rem' }}>About Me (Bio)</h3>
           <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>{worker.bio || 'No details provided yet.'}</p>
+        </div>
+
+        {/* Locations & GPS Coverage */}
+        <div className="card glass" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <MapPin size={18} color="var(--primary)" />
+            Primary Location & Work Areas
+          </h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.02)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+            {worker.latitude && worker.longitude ? (
+              <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                <strong>GPS Coordinates:</strong> {worker.latitude.toFixed(6)}, {worker.longitude.toFixed(6)}
+              </p>
+            ) : (
+              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                GPS coordinates not set.
+              </p>
+            )}
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>
+              <strong>Current Area:</strong> {worker.current_area || 'Not Set'}
+            </p>
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>
+              <strong>Current City:</strong> {worker.current_city || 'Not Set'}
+            </p>
+          </div>
+
+          <div style={{ marginTop: '0.5rem' }}>
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem' }}>All Configured Locations</h4>
+            {locations.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No locations configured yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {locations.map(loc => (
+                  <div key={loc.id} style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                    <span>📍</span>
+                    <span style={{ fontWeight: loc.is_primary ? '700' : 'normal' }}>
+                      {loc.city_name} → {loc.area_name} ({loc.society_name || 'All Societies'})
+                    </span>
+                    {loc.is_primary && (
+                      <span className="badge badge-verified" style={{ marginLeft: 'auto', fontSize: '10px', padding: '2px 6px' }}>
+                        PRIMARY
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
       </div>

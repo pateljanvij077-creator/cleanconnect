@@ -14,6 +14,7 @@ import { getStates, getCities, getAreas, findOrCreateState, findOrCreateCity, fi
 import { toast } from 'react-hot-toast'
 import { ArrowLeft, Trash2, Plus, FileUp, QrCode, MapPin } from 'lucide-react'
 import { getCurrentPosition, getLocationDetails } from '../../utils/gps'
+import LocationPicker from '../../components/maps/LocationPicker'
 
 export default function EditProfile() {
   const navigate = useNavigate()
@@ -45,6 +46,21 @@ export default function EditProfile() {
   const [travelRadius, setTravelRadius] = useState(10)
   const [maxSelectableSocieties, setMaxSelectableSocieties] = useState(10)
 
+  // Primary Location states
+  const [primaryLat, setPrimaryLat] = useState(null)
+  const [primaryLng, setPrimaryLng] = useState(null)
+  const [primaryAddress, setPrimaryAddress] = useState('')
+  const [primaryStateId, setPrimaryStateId] = useState('')
+  const [primaryCityId, setPrimaryCityId] = useState('')
+  const [primaryAreaId, setPrimaryAreaId] = useState('')
+  const [primaryStateName, setPrimaryStateName] = useState('')
+  const [primaryCityName, setPrimaryCityName] = useState('')
+  const [primaryAreaName, setPrimaryAreaName] = useState('')
+  const [primarySocietyName, setPrimarySocietyName] = useState('')
+  
+  const [primaryCities, setPrimaryCities] = useState([])
+  const [primaryAreas, setPrimaryAreas] = useState([])
+
   // Fetch max_selectable_societies on mount
   useEffect(() => {
     supabase
@@ -72,7 +88,27 @@ export default function EditProfile() {
       setTravelRadius(worker.travel_radius || 10)
 
       // Load locations
-      getWorkerLocations(worker.id).then(setLocations)
+      getWorkerLocations(worker.id).then(locs => {
+        setLocations(locs)
+        const primary = locs.find(l => l.is_primary)
+        if (primary) {
+          setPrimaryLat(primary.latitude || worker.latitude || null)
+          setPrimaryLng(primary.longitude || worker.longitude || null)
+          setPrimaryAddress(primary.address || '')
+          setPrimaryStateId(primary.state_id || '')
+          setPrimaryCityId(primary.city_id || '')
+          setPrimaryAreaId(primary.area_id || '')
+          setPrimaryStateName(primary.state_name || '')
+          setPrimaryCityName(primary.city_name || '')
+          setPrimaryAreaName(primary.area_name || '')
+          setPrimarySocietyName(primary.society_name || '')
+        } else {
+          setPrimaryLat(worker.latitude || null)
+          setPrimaryLng(worker.longitude || null)
+          setPrimaryCityName(worker.current_city || '')
+          setPrimaryAreaName(worker.current_area || '')
+        }
+      })
     }
 
     // Load initial states list
@@ -92,6 +128,85 @@ export default function EditProfile() {
       getAreas(selLoc.cityId).then(setAreas)
     }
   }, [selLoc.cityId])
+
+  // Load primary cities on primary state change
+  useEffect(() => {
+    if (primaryStateId) {
+      getCities(primaryStateId).then(setPrimaryCities)
+    } else {
+      setPrimaryCities([])
+    }
+  }, [primaryStateId])
+
+  // Load primary areas on primary city change
+  useEffect(() => {
+    if (primaryCityId) {
+      getAreas(primaryCityId).then(setPrimaryAreas)
+    } else {
+      setPrimaryAreas([])
+    }
+  }, [primaryCityId])
+
+  const handlePrimaryLocationChange = async (coords) => {
+    setPrimaryLat(coords.latitude)
+    setPrimaryLng(coords.longitude)
+    setPrimaryAddress(coords.address)
+    
+    try {
+      const details = await getLocationDetails(coords.latitude, coords.longitude)
+      if (details.state) {
+        const resolvedState = await findOrCreateState(details.state)
+        setPrimaryStateId(resolvedState.id)
+        setPrimaryStateName(resolvedState.name)
+        
+        // Refresh states dropdown list
+        const updatedStates = await getStates()
+        setStates(updatedStates)
+        
+        if (details.city) {
+          const resolvedCity = await findOrCreateCity(details.city, resolvedState.id)
+          setPrimaryCityId(resolvedCity.id)
+          setPrimaryCityName(resolvedCity.name)
+          
+          if (details.area) {
+            const resolvedArea = await findOrCreateArea(details.area, resolvedCity.id)
+            setPrimaryAreaId(resolvedArea.id)
+            setPrimaryAreaName(resolvedArea.name)
+          }
+        }
+      }
+      setPrimarySocietyName(details.society || 'All Societies')
+    } catch (err) {
+      console.error('Error resolving coordinates:', err)
+    }
+  }
+
+  const handlePrimaryStateChange = (e) => {
+    const id = e.target.value
+    setPrimaryStateId(id)
+    const st = states.find(s => s.id === id)
+    setPrimaryStateName(st ? st.name : '')
+    setPrimaryCityId('')
+    setPrimaryCityName('')
+    setPrimaryAreaId('')
+    setPrimaryAreaName('')
+  }
+
+  const handlePrimaryCityChange = (e) => {
+    const id = e.target.value
+    setPrimaryCityId(id)
+    const ct = primaryCities.find(c => c.id === id)
+    setPrimaryCityName(ct ? ct.name : '')
+    setPrimaryAreaId('')
+    setPrimaryAreaName('')
+  }
+
+  const handlePrimaryAreaChange = (e) => {
+    const id = e.target.value
+    setPrimaryAreaId(id)
+    const ar = primaryAreas.find(a => a.id === id)
+    setPrimaryAreaName(ar ? ar.name : '')
+  }
 
   const handleDetectLocation = async () => {
     toast.loading('Detecting location...', { id: 'gps-profile' })
@@ -237,9 +352,53 @@ export default function EditProfile() {
           pricing_note: pricingNote,
           phone2,
           languages,
-          travel_radius: Number(travelRadius)
+          travel_radius: Number(travelRadius),
+          latitude: primaryLat,
+          longitude: primaryLng,
+          current_city: primaryCityName || null,
+          current_area: primaryAreaName || null,
+          last_location_update: new Date().toISOString()
         })
         .eq('id', worker.id)
+
+      // 4. Update/Upsert primary location entry in worker_locations table
+      const primaryLoc = locations.find(l => l.is_primary)
+      if (primaryLoc) {
+        const { error: updateLocErr } = await supabase
+          .from('worker_locations')
+          .update({
+            state_id: primaryStateId || null,
+            city_id: primaryCityId || null,
+            area_id: primaryAreaId || null,
+            state_name: primaryStateName || null,
+            city_name: primaryCityName || null,
+            area_name: primaryAreaName || null,
+            society_name: primarySocietyName || 'All Societies',
+            latitude: primaryLat || null,
+            longitude: primaryLng || null,
+            address: primaryAddress || null
+          })
+          .eq('id', primaryLoc.id)
+        if (updateLocErr) throw updateLocErr
+      } else {
+        const { error: insertLocErr } = await supabase
+          .from('worker_locations')
+          .insert([{
+            worker_id: worker.id,
+            state_id: primaryStateId || null,
+            city_id: primaryCityId || null,
+            area_id: primaryAreaId || null,
+            state_name: primaryStateName || null,
+            city_name: primaryCityName || null,
+            area_name: primaryAreaName || null,
+            society_name: primarySocietyName || 'All Societies',
+            latitude: primaryLat || null,
+            longitude: primaryLng || null,
+            address: primaryAddress || null,
+            is_primary: true
+          }])
+        if (insertLocErr) throw insertLocErr
+      }
 
       toast.success('Profile updated successfully!')
       await refreshProfile()
@@ -358,10 +517,64 @@ export default function EditProfile() {
             </div>
           </div>
 
+          {/* Primary Location (Map & Details) */}
+          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Primary Base Location</h4>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+              Set your primary address location. You can pin it on the map or select it manually below.
+            </p>
+
+            <div className="grid-3" style={{ background: 'var(--bg-secondary)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '11px' }}>State</label>
+                <select className="form-select" value={primaryStateId} onChange={handlePrimaryStateChange}>
+                  <option value="">Select State</option>
+                  {states.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '11px' }}>City</label>
+                <select className="form-select" value={primaryCityId} disabled={!primaryStateId} onChange={handlePrimaryCityChange}>
+                  <option value="">Select City</option>
+                  {primaryCities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '11px' }}>Area</label>
+                <select className="form-select" value={primaryAreaId} disabled={!primaryCityId} onChange={handlePrimaryAreaChange}>
+                  <option value="">Select Area</option>
+                  {primaryAreas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Society Name / Landmark</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="e.g. Setu Vartica" 
+                value={primarySocietyName} 
+                onChange={e => setPrimarySocietyName(e.target.value)} 
+              />
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label">Pin Base Location on Map</label>
+              <LocationPicker 
+                lat={primaryLat} 
+                lng={primaryLng} 
+                onLocationChange={handlePrimaryLocationChange} 
+              />
+            </div>
+          </div>
+
           {/* Location matrix list adding manager */}
           <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Manage Work Locations</h4>
+              <h4 style={{ fontSize: '1rem', fontWeight: 800, margin: 0 }}>Manage Additional Work Locations</h4>
               <button 
                 type="button" 
                 onClick={handleDetectLocation} 
