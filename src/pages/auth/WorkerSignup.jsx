@@ -9,6 +9,7 @@ import { getStates, getCities, getAreas, searchSocieties, findOrCreateState, fin
 import LocationPicker from '../../components/maps/LocationPicker'
 import { toast } from 'react-hot-toast'
 import { getLocationDetails, getCurrentPosition } from '../../utils/gps'
+import { supabase } from '../../supabase/client'
 
 export default function WorkerSignup() {
   const navigate = useNavigate()
