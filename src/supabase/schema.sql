@@ -143,6 +143,22 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('worker-photos', 'worker-
 INSERT INTO storage.buckets (id, name, public) VALUES ('aadhaar-docs', 'aadhaar-docs', true) ON CONFLICT DO NOTHING;
 INSERT INTO storage.buckets (id, name, public) VALUES ('pan-docs', 'pan-docs', true) ON CONFLICT DO NOTHING;
 
+-- Storage Policies for worker-photos
+CREATE POLICY "Allow public select access to worker-photos" ON storage.objects FOR SELECT USING (bucket_id = 'worker-photos');
+CREATE POLICY "Allow authenticated uploads to worker-photos" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'worker-photos');
+CREATE POLICY "Allow authenticated updates to worker-photos" ON storage.objects FOR UPDATE USING (bucket_id = 'worker-photos');
+CREATE POLICY "Allow authenticated deletes to worker-photos" ON storage.objects FOR DELETE USING (bucket_id = 'worker-photos');
+
+-- Storage Policies for aadhaar-docs
+CREATE POLICY "Allow public select access to aadhaar-docs" ON storage.objects FOR SELECT USING (bucket_id = 'aadhaar-docs');
+CREATE POLICY "Allow authenticated uploads to aadhaar-docs" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'aadhaar-docs');
+CREATE POLICY "Allow authenticated updates to aadhaar-docs" ON storage.objects FOR UPDATE USING (bucket_id = 'aadhaar-docs');
+
+-- Storage Policies for pan-docs
+CREATE POLICY "Allow public select access to pan-docs" ON storage.objects FOR SELECT USING (bucket_id = 'pan-docs');
+CREATE POLICY "Allow authenticated uploads to pan-docs" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'pan-docs');
+CREATE POLICY "Allow authenticated updates to pan-docs" ON storage.objects FOR UPDATE USING (bucket_id = 'pan-docs');
+
 -- 9. Permissions & Roles
 CREATE TABLE IF NOT EXISTS public.permissions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
