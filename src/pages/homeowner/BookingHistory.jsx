@@ -4,10 +4,11 @@ import { getHomeownerBookings, updateBookingStatus, createReview, saveHashedCode
 import { createNotification } from '../../services/notifications'
 import { useAuth } from '../../hooks/useAuth'
 import { formatDate, formatTime, getStatusClass, formatCurrency } from '../../utils/helpers'
-import { Star, MessageCircle, AlertCircle, X, Clock, RefreshCw, Copy, Check, History, Phone } from 'lucide-react'
+import { Star, MessageCircle, AlertCircle, X, Clock, RefreshCw, Copy, Check, History, Phone, MapPin } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { supabase } from '../../supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
+import JobRouteMap from '../../components/maps/JobRouteMap'
 
 const generateSecureCode = () => {
   const array = new Uint32Array(1)
@@ -195,6 +196,7 @@ export default function BookingHistory() {
 
   // Code generation state
   const [activeCodes, setActiveCodes] = useState({})
+  const [showMapMap, setShowMapMap] = useState({}) // keyed by booking ID
   const activeCodesRef = useRef({})
   const generatingRef = useRef({})
 
@@ -661,6 +663,36 @@ export default function BookingHistory() {
                             Payment: <strong style={{ textTransform: 'capitalize' }}>{b.payment_method}</strong> ({b.payment_status})
                           </span>
                         </div>
+
+                        {/* Track Cleaner Map Toggle for active bookings */}
+                        {isBookingActive && (
+                          <div style={{ marginTop: '8px' }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setShowMapMap(prev => ({ ...prev, [b.id]: !prev[b.id] }))
+                              }}
+                              className="btn btn-ghost btn-sm"
+                              style={{ padding: '4px 8px', fontSize: '12px', gap: '4px', height: 'auto', minHeight: 'auto', display: 'flex', alignItems: 'center' }}
+                            >
+                              <MapPin size={12} color="var(--primary)" />
+                              {showMapMap[b.id] ? 'Hide Tracking Map' : 'Track Cleaner on Map'}
+                            </button>
+                            
+                            {showMapMap[b.id] && (
+                              <JobRouteMap
+                                workerLat={b.workers?.latitude}
+                                workerLng={b.workers?.longitude}
+                                homeownerLat={b.latitude || homeowner?.latitude}
+                                homeownerLng={b.longitude || homeowner?.longitude}
+                                workerAvatar={b.workers?.selfie_url || b.workers?.avatar_url}
+                                homeownerAvatar={homeowner?.avatar_url}
+                                homeownerName={homeowner?.full_name}
+                                address={b.address}
+                              />
+                            )}
+                          </div>
+                        )}
 
                         {/* Cleaner Call Actions for active bookings */}
                         {isBookingActive && b.workers?.phone && (

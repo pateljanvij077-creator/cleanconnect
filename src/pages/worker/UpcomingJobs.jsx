@@ -421,16 +421,14 @@ export default function UpcomingJobs() {
                       </p>
 
                       {/* Map Toggle Button */}
-                      {(j.latitude || j.homeowners?.latitude) && (
-                        <button 
-                          onClick={() => setShowMapMap(prev => ({ ...prev, [j.id]: !prev[j.id] }))}
-                          className="btn btn-ghost btn-sm"
-                          style={{ padding: '4px 8px', fontSize: '12px', marginTop: '0.25rem', gap: '4px', height: 'auto', minHeight: 'auto', display: 'flex', alignItems: 'center' }}
-                        >
-                          <MapPin size={12} color="var(--primary)" /> 
-                          {showMapMap[j.id] ? 'Hide Route Map' : 'View Route on Map'}
-                        </button>
-                      )}
+                      <button 
+                        onClick={() => setShowMapMap(prev => ({ ...prev, [j.id]: !prev[j.id] }))}
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: '4px 8px', fontSize: '12px', marginTop: '0.25rem', gap: '4px', height: 'auto', minHeight: 'auto', display: 'flex', alignItems: 'center' }}
+                      >
+                        <MapPin size={12} color="var(--primary)" /> 
+                        {showMapMap[j.id] ? 'Hide Route Map' : 'View Route on Map'}
+                      </button>
 
                       {showMapMap[j.id] && (
                         <JobRouteMap

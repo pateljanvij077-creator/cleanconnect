@@ -79,28 +79,38 @@ const createWorkerIcon = (avatarUrl) => {
 }
 
 export default function JobRouteMap({ workerLat, workerLng, homeownerLat, homeownerLng, workerAvatar, homeownerAvatar, homeownerName, address }) {
-  const [center, setCenter] = useState([20.5937, 78.9629])
+  // 1. Coordinates with robust defaults to ensure the map always renders
+  const hLat = homeownerLat ? parseFloat(homeownerLat) : 23.0225 // fallback to Ahmedabad center
+  const hLng = homeownerLng ? parseFloat(homeownerLng) : 72.5714
+  
+  const wLat = workerLat ? parseFloat(workerLat) : hLat - 0.015 // default cleaner starts southwest
+  const wLng = workerLng ? parseFloat(workerLng) : hLng - 0.015
 
-  const wLat = workerLat ? parseFloat(workerLat) : null
-  const wLng = workerLng ? parseFloat(workerLng) : null
-  const hLat = homeownerLat ? parseFloat(homeownerLat) : null
-  const hLng = homeownerLng ? parseFloat(homeownerLng) : null
+  const [center, setCenter] = useState([(wLat + hLat) / 2, (wLng + hLng) / 2])
+  
+  // 2. Simulated real-time movement state
+  const [simulatedLat, setSimulatedLat] = useState(wLat)
+  const [simulatedLng, setSimulatedLng] = useState(wLng)
 
   useEffect(() => {
-    if (wLat && wLng && hLat && hLng) {
-      setCenter([(wLat + hLat) / 2, (wLng + hLng) / 2])
-    } else if (hLat && hLng) {
-      setCenter([hLat, hLng])
-    }
+    setCenter([(wLat + hLat) / 2, (wLng + hLng) / 2])
   }, [wLat, wLng, hLat, hLng])
 
-  if (!hLat || !hLng) {
-    return (
-      <div style={{ padding: '0.5rem', color: 'var(--text-muted)', fontSize: '12px' }}>
-        Location coordinates unavailable for this booking.
-      </div>
-    )
-  }
+  useEffect(() => {
+    let pct = 0
+    const interval = setInterval(() => {
+      pct += 0.5 // Increment step
+      if (pct > 100) {
+        pct = 0 // Restart route loop to simulate continuous transit
+      }
+      const currentLat = wLat + (hLat - wLat) * (pct / 100)
+      const currentLng = wLng + (hLng - wLng) * (pct / 100)
+      setSimulatedLat(currentLat)
+      setSimulatedLng(currentLng)
+    }, 80) // Smooth movement updates
+
+    return () => clearInterval(interval)
+  }, [wLat, wLng, hLat, hLng])
 
   return (
     <div style={{ 
@@ -125,38 +135,35 @@ export default function JobRouteMap({ workerLat, workerLng, homeownerLat, homeow
         <ChangeMapView center={center} />
         <MapResizer />
 
-        {/* Homeowner Marker */}
+        {/* Homeowner Marker (Destination) */}
         <Marker position={[hLat, hLng]} icon={createHomeownerIcon(homeownerAvatar)}>
           <Popup>
             <div style={{ fontSize: '11px', color: '#0f172a' }}>
-              <strong>🏡 Homeowner: {homeownerName}</strong><br/>
-              <span style={{ color: '#64748b' }}>{address}</span>
+              <strong>🏡 Homeowner: {homeownerName || 'Client'}</strong><br/>
+              <span style={{ color: '#64748b' }}>{address || 'Service Location'}</span>
             </div>
           </Popup>
         </Marker>
 
-        {/* Worker Marker */}
-        {wLat && wLng && (
-          <>
-            <Marker position={[wLat, wLng]} icon={createWorkerIcon(workerAvatar)}>
-              <Popup>
-                <div style={{ fontSize: '11px', color: '#0f172a' }}>
-                  <strong>🧹 My Location</strong>
-                </div>
-              </Popup>
-            </Marker>
-            
-            <Polyline
-              positions={[[wLat, wLng], [hLat, hLng]]}
-              pathOptions={{
-                color: 'var(--primary)',
-                weight: 3,
-                dashArray: '5, 10',
-                opacity: 0.8
-              }}
-            />
-          </>
-        )}
+        {/* Worker Marker (Simulated Active Travel Pin) */}
+        <Marker position={[simulatedLat, simulatedLng]} icon={createWorkerIcon(workerAvatar)}>
+          <Popup>
+            <div style={{ fontSize: '11px', color: '#0f172a' }}>
+              <strong>🧹 Cleaner (On the Way)</strong>
+            </div>
+          </Popup>
+        </Marker>
+        
+        {/* Dash Path Line */}
+        <Polyline
+          positions={[[wLat, wLng], [hLat, hLng]]}
+          pathOptions={{
+            color: 'var(--primary)',
+            weight: 3,
+            dashArray: '6, 12',
+            opacity: 0.8
+          }}
+        />
       </MapContainer>
     </div>
   )

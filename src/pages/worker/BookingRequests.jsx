@@ -188,16 +188,14 @@ export default function BookingRequests() {
                       </p>
                       
                       {/* Map Toggle Button */}
-                      {(r.latitude || r.homeowners?.latitude) && (
-                        <button 
-                          onClick={() => setShowMapMap(prev => ({ ...prev, [r.id]: !prev[r.id] }))}
-                          className="btn btn-ghost btn-sm"
-                          style={{ padding: '4px 8px', fontSize: '12px', marginTop: '0.25rem', gap: '4px', height: 'auto', minHeight: 'auto', display: 'flex', alignItems: 'center' }}
-                        >
-                          <MapPin size={12} color="var(--primary)" /> 
-                          {showMapMap[r.id] ? 'Hide Location Map' : 'View Location on Map'}
-                        </button>
-                      )}
+                      <button 
+                        onClick={() => setShowMapMap(prev => ({ ...prev, [r.id]: !prev[r.id] }))}
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: '4px 8px', fontSize: '12px', marginTop: '0.25rem', gap: '4px', height: 'auto', minHeight: 'auto', display: 'flex', alignItems: 'center' }}
+                      >
+                        <MapPin size={12} color="var(--primary)" /> 
+                        {showMapMap[r.id] ? 'Hide Location Map' : 'View Location on Map'}
+                      </button>
 
                       {showMapMap[r.id] && (
                         <JobRouteMap
