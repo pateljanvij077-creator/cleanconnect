@@ -105,13 +105,20 @@ export default function WorkerLayout({ children }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingLeft: '0.5rem' }}>
             <div style={{
-              background: 'var(--gradient-primary)',
-              padding: '8px',
+              background: '#ffffff',
+              padding: '6px',
               borderRadius: '12px',
               display: 'flex',
-              color: 'white'
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: 'var(--shadow-sm)',
+              border: '1px solid var(--border-glass)'
             }}>
-              <Sparkles size={24} />
+              <img 
+                src="/logo-icon.png" 
+                alt="CleanConnect" 
+                style={{ width: '24px', height: '24px', objectFit: 'contain' }} 
+              />
             </div>
             <div>
               <h1 style={{ fontSize: '1.25rem', fontWeight: 800 }}>CleanConnect</h1>
@@ -207,65 +214,45 @@ export default function WorkerLayout({ children }) {
           top: 0,
           zIndex: 9
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {/* Left section: Location */}
-            <div 
-              onClick={() => setIsLocationModalOpen(true)}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem', 
-                cursor: 'pointer',
-                padding: '4px 8px',
-                borderRadius: 'var(--radius-sm)',
-                transition: 'background var(--transition-fast)'
-              }}
-              className="glass-hover"
-              title="Click to select or search your location"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{
-                  background: 'var(--primary-light)',
-                  padding: '6px',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  color: 'var(--primary)'
-                }}>
-                  <MapPin size={18} />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                    LOCATION
-                  </span>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    {worker?.current_area || worker?.current_city || 'Set Location...'}
-                  </span>
-                </div>
-              </div>
+          {/* Left section: Logo & App Name */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{
+              background: '#ffffff',
+              padding: '4px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: 'var(--shadow-sm)',
+              border: '1px solid var(--border-glass)'
+            }}>
+              <img 
+                src="/logo-icon.png" 
+                alt="CleanConnect" 
+                style={{ width: '28px', height: '28px', objectFit: 'contain' }} 
+              />
             </div>
-
+            <h1 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>CleanConnect</h1>
+            
             {worker?.verification_status !== 'approved' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--warning)', fontSize: '11px', fontWeight: 600 }}>
-                <AlertCircle size={14} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--warning)', fontSize: '10px', fontWeight: 600, background: 'var(--warning-light)', padding: '2px 6px', borderRadius: '4px' }}>
+                <AlertCircle size={10} />
                 <span>Reviewing</span>
               </div>
             )}
           </div>
 
+          {/* Right section: Profile Avatar only */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div 
-              style={{ display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', position: 'relative' }}
+              style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', position: 'relative' }}
               onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
             >
-              <div style={{ textAlign: 'right' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: 700 }}>{worker?.full_name}</h4>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{worker?.worker_type?.replace('_', ' ')}</span>
-              </div>
               {worker?.avatar_url ? (
-                <img src={worker.avatar_url} alt="Profile" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+                <img src={worker.avatar_url} alt="Profile" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border-glass)' }} />
               ) : (
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <User size={20} color="var(--primary)" />
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-glass)' }}>
+                  <User size={18} color="var(--primary)" />
                 </div>
               )}
 

@@ -59,13 +59,20 @@ export default function AdminLayout({ children }) {
         <div style={{ display: 'flex', alignItems: 'center', justifycontent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', paddingLeft: '0.5rem' }}>
             <div style={{
-              background: 'var(--gradient-primary)',
-              padding: '8px',
+              background: '#ffffff',
+              padding: '6px',
               borderRadius: '12px',
               display: 'flex',
-              color: 'white'
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: 'var(--shadow-sm)',
+              border: '1px solid var(--border-glass)'
             }}>
-              <Sparkles size={24} />
+              <img 
+                src="/logo-icon.png" 
+                alt="CleanConnect" 
+                style={{ width: '24px', height: '24px', objectFit: 'contain' }} 
+              />
             </div>
             <div>
               <h1 style={{ fontSize: '1.25rem', fontWeight: 800 }}>CleanConnect</h1>
@@ -120,15 +127,34 @@ export default function AdminLayout({ children }) {
           top: 0,
           zIndex: 9
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Left section: Menu toggle, Logo & App Name */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button className="menu-toggle" onClick={() => setIsSidebarOpen(true)}>
               <Menu size={24} />
             </button>
+            <div style={{
+              background: '#ffffff',
+              padding: '4px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: 'var(--shadow-sm)',
+              border: '1px solid var(--border-glass)'
+            }}>
+              <img 
+                src="/logo-icon.png" 
+                alt="CleanConnect" 
+                style={{ width: '28px', height: '28px', objectFit: 'contain' }} 
+              />
+            </div>
+            <h1 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }} className="md-hidden">CleanConnect</h1>
           </div>
+
+          {/* Right section: Admin badge only */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ textAlign: 'right' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Admin Session</h4>
-              <span style={{ fontSize: '11px', color: '#ef4444' }}>Superuser privilege</span>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--danger-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-glass)' }} title="System Administrator">
+              <ShieldCheck size={18} color="var(--danger)" />
             </div>
           </div>
         </header>

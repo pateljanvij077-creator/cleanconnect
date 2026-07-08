@@ -91,16 +91,22 @@ export default function AuthPage() {
             whileHover={{ scale: 1.1, rotate: 10 }}
             whileTap={{ scale: 0.95 }}
             style={{
-              background: 'var(--gradient-primary)',
-              padding: '12px',
+              background: '#ffffff',
+              padding: '8px',
               borderRadius: '16px',
               display: 'flex',
-              color: 'white',
-              boxShadow: '0 4px 20px 0 var(--primary-glow)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: 'var(--shadow-md)',
+              border: '1px solid var(--border-glass)',
               cursor: 'pointer'
             }}
           >
-            <Sparkles size={28} />
+            <img 
+              src="/logo-icon.png" 
+              alt="CleanConnect Icon" 
+              style={{ width: '32px', height: '32px', objectFit: 'contain' }} 
+            />
           </motion.div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Welcome Back</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>

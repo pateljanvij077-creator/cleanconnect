@@ -6,14 +6,15 @@ import { useWorkers } from '../../hooks/useWorkers'
 import WorkerCard from '../../components/common/WorkerCard'
 import SkeletonCard from '../../components/common/SkeletonCard'
 import { toggleFavorite, getFavorites } from '../../services/bookings'
-import { Sparkles, SlidersHorizontal, Search } from 'lucide-react'
+import { Sparkles, SlidersHorizontal, Search, MapPin } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import BottomSheet from '../../components/common/BottomSheet'
+import LocationModal from '../../components/common/LocationModal'
 
 export default function HomeOwnerDashboard() {
   const navigate = useNavigate()
-  const { homeowner } = useAuth()
+  const { homeowner, user } = useAuth()
   const { workers, loading, refetch } = useWorkers(homeowner)
   
   // Search and Filter states
@@ -21,6 +22,7 @@ export default function HomeOwnerDashboard() {
   const [workerType, setWorkerType] = useState('all')
   const [minRating, setMinRating] = useState(0)
   const [maxDistance, setMaxDistance] = useState(15) // default 15km
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
   
   const [favList, setFavList] = useState([])
   const [showFilters, setShowFilters] = useState(false)
@@ -71,17 +73,64 @@ export default function HomeOwnerDashboard() {
     <HomeOwnerLayout>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="fade-in">
         
-        {/* Welcome Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>
-              Find Cleaning Workers near you
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Cleaners matched by Auto Location → Society → Area → City
-            </p>
+        {/* Zomato-Style Location Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+          style={{ width: '100%' }}
+        >
+          <div 
+            onClick={() => setIsLocationModalOpen(true)}
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-glass)',
+              borderRadius: '16px',
+              padding: '0.75rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: 'var(--shadow-sm)',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              width: '100%'
+            }}
+            className="glass-hover"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+              <div style={{
+                background: 'var(--primary-light)',
+                color: 'var(--primary)',
+                padding: '8px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <MapPin size={20} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'left' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  YOUR LOCATION (Click to Change)
+                </span>
+                <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {homeowner?.society_name ? `${homeowner.society_name}, ${homeowner.area || homeowner.city || 'Ahmedabad'}` : homeowner?.area || 'Set your location...'}
+                </span>
+              </div>
+            </div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              color: 'var(--text-muted)',
+              paddingLeft: '0.5rem'
+            }}>
+              <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1L6 6L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Filter controls bar */}
         <div className="card glass" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -208,6 +257,19 @@ export default function HomeOwnerDashboard() {
         )}
 
       </div>
+
+      {/* Zomato-style Location Picker Popup */}
+      <LocationModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        homeowner={homeowner}
+        user={user}
+        onLocationUpdated={async () => {
+          if (refetch) {
+            await refetch()
+          }
+        }}
+      />
     </HomeOwnerLayout>
   )
 }

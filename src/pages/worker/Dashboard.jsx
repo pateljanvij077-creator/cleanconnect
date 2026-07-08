@@ -143,46 +143,106 @@ export default function WorkerDashboard() {
     <WorkerLayout>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-        {/* Welcome Block */}
+        {/* Zomato-Style Location Bar & Duty State selector */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 100, damping: 15 }}
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}
         >
-          <div>
-            <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>
-              Welcome Back, {worker?.full_name}! 👋
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Manage your jobs, availability status and subscriptions
-            </p>
-          </div>
-
-          {/* Status selector & Refresh GPS button */}
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <motion.button
-              whileHover={{ scale: 1.04, y: -1 }}
-              whileTap={{ scale: 0.96 }}
-              type="button"
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: '100%', alignItems: 'stretch' }}>
+            {/* Zomato Location Button */}
+            <div 
               onClick={() => setIsLocationModalOpen(true)}
-              className="btn btn-secondary flex-center"
-              style={{ padding: '8px 12px', gap: '6px', fontSize: '12px', height: '36px', display: 'flex', alignItems: 'center' }}
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-glass)',
+                borderRadius: '16px',
+                padding: '0.75rem 1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxShadow: 'var(--shadow-sm)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                flex: 1,
+                minWidth: '260px'
+              }}
+              className="glass-hover"
             >
-              <MapPin size={14} /> Refresh GPS
-            </motion.button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                <div style={{
+                  background: 'var(--primary-light)',
+                  color: 'var(--primary)',
+                  padding: '8px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <MapPin size={20} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, textAlign: 'left' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    YOUR WORK LOCATION
+                  </span>
+                  <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {worker?.current_area ? `${worker.current_area}, ${worker.current_city || 'Ahmedabad'}` : worker?.current_city || 'Set your location...'}
+                  </span>
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                color: 'var(--text-muted)',
+                paddingLeft: '0.5rem'
+              }}>
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1L6 6L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
 
-            <div className="card glass flex-center" style={{ padding: '0.5rem 1rem', gap: '0.5rem', margin: 0, height: '36px', display: 'flex', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700 }}>Duty State:</span>
-              <select className="form-select" style={{ padding: '4px 8px', fontSize: '12px', width: 'auto', background: 'none', border: 'none', color: 'var(--text)' }} value={availabilityStatus} onChange={handleStatusChange}>
-                <option value="available">🟢 Available for Work</option>
-                <option value="busy">🟡 Currently Busy</option>
-                <option value="on_leave">🟠 On Leave</option>
+            {/* Duty State Card */}
+            <div className="card glass" style={{ 
+              padding: '0.5rem 1rem', 
+              margin: 0, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.75rem',
+              borderRadius: '16px',
+              border: '1px solid var(--border-glass)',
+              boxShadow: 'var(--shadow-sm)',
+              height: 'auto',
+              minWidth: '160px',
+              justifyContent: 'space-between'
+            }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Duty State:</span>
+              <select 
+                className="form-select" 
+                style={{ 
+                  padding: '4px 20px 4px 8px', 
+                  fontSize: '13px', 
+                  fontWeight: 700,
+                  width: 'auto', 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer'
+                }} 
+                value={availabilityStatus} 
+                onChange={handleStatusChange}
+              >
+                <option value="available">🟢 Available</option>
+                <option value="busy">🟡 Busy</option>
+                <option value="on_leave">🟠 Leave</option>
                 <option value="offline">🔴 Offline</option>
               </select>
             </div>
           </div>
         </motion.div>
+
 
         {/* Animated Stats Row */}
         <div className="grid-4">
