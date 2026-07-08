@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import WorkerLayout from '../../components/layout/WorkerLayout'
 import { useAuth } from '../../hooks/useAuth'
 import { formatCurrency, formatDate } from '../../utils/helpers'
-import { Star, ShieldCheck, BadgeAlert, Plus, Edit3, MapPin, User, CreditCard, BookOpen } from 'lucide-react'
+import { Star, ShieldCheck, BadgeAlert, Plus, Edit3, MapPin, User, CreditCard, BookOpen, Download } from 'lucide-react'
 import { getWorkerLocations } from '../../services/workers'
 import { motion } from 'framer-motion'
 
@@ -28,12 +28,34 @@ export default function WorkerProfile() {
   const navigate = useNavigate()
   const { worker } = useAuth()
   const [locations, setLocations] = useState([])
+  const [installPrompt, setInstallPrompt] = useState(window.deferredPrompt)
+  const [isIOS, setIsIOS] = useState(false)
+  const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream)
+    setIsStandalone(window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches)
+
     if (worker) {
       getWorkerLocations(worker.id).then(setLocations).catch(err => console.error(err))
     }
+
+    const handleInstallable = () => {
+      setInstallPrompt(window.deferredPrompt)
+    }
+    window.addEventListener('pwa-installable', handleInstallable)
+    return () => window.removeEventListener('pwa-installable', handleInstallable)
   }, [worker])
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return
+    installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    if (outcome === 'accepted') {
+      setInstallPrompt(null)
+      window.deferredPrompt = null
+    }
+  }
 
   if (!worker) return null
 
@@ -290,6 +312,33 @@ export default function WorkerProfile() {
             )}
           </div>
         </motion.div>
+
+        {/* App Installation Section */}
+        {(!isStandalone && (installPrompt || isIOS)) && (
+          <motion.div variants={itemVariants} className="card glass" style={{ border: '1px solid var(--border-glass)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <Download size={18} color="var(--primary)" /> Install CleanConnect App
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0, lineHeight: 1.5 }}>
+              Install CleanConnect as a lightweight app on your phone or computer. This makes it easy to open the dashboard directly from your home screen with offline capability.
+            </p>
+            {installPrompt && (
+              <button 
+                onClick={handleInstallClick} 
+                className="btn btn-primary" 
+                style={{ gap: '6px', width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', height: '40px' }}
+              >
+                <Download size={16} /> Install Now
+              </button>
+            )}
+            {isIOS && !installPrompt && (
+              <div style={{ background: 'var(--primary-light)', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span>📱</span>
+                <span>On iOS (iPhone/iPad): Tap the <strong>Share</strong> button in Safari and select <strong>Add to Home Screen</strong> to install.</span>
+              </div>
+            )}
+          </motion.div>
+        )}
 
       </motion.div>
     </WorkerLayout>
