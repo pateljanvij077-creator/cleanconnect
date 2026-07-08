@@ -606,8 +606,10 @@ a:hover {
 
 @media (max-width: 1023px) {
   .app-sidebar {
+    display: flex; /* Override display: none from default class */
     position: fixed;
     transform: translateX(-100%);
+    z-index: 50; /* Make sure it stays on top of the main area */
   }
   
   .app-sidebar.open {
