@@ -6,8 +6,9 @@ import { createNotification } from '../../services/notifications'
 import { updateWorkerGPSLocation } from '../../services/workers'
 import { getCurrentPosition, getLocationDetails } from '../../utils/gps'
 import { formatDate, formatTime } from '../../utils/helpers'
-import { CheckCircle2, Play, Phone, MessageCircle, Lock, RotateCcw, X, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Play, Phone, MessageCircle, Lock, RotateCcw, X, AlertTriangle, MapPin } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import JobRouteMap from '../../components/maps/JobRouteMap'
 
 // Statuses that the cleaner actively works within
 const ACTIVE_STATUSES = ['accepted', 'arrived', 'started', 'finishing']
@@ -224,6 +225,7 @@ export default function UpcomingJobs() {
   // showModal: { job, codeType } | null
   const [showModal, setShowModal] = useState(null)
   const [actionLoading, setActionLoading] = useState({})
+  const [showMapMap, setShowMapMap] = useState({}) // keyed by booking ID
 
   const fetchJobs = () => {
     if (!worker) return
@@ -417,6 +419,31 @@ export default function UpcomingJobs() {
                       <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                         📍 <strong>Address:</strong> {j.address}
                       </p>
+
+                      {/* Map Toggle Button */}
+                      {(j.latitude || j.homeowners?.latitude) && (
+                        <button 
+                          onClick={() => setShowMapMap(prev => ({ ...prev, [j.id]: !prev[j.id] }))}
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '4px 8px', fontSize: '12px', marginTop: '0.25rem', gap: '4px', height: 'auto', minHeight: 'auto', display: 'flex', alignItems: 'center' }}
+                        >
+                          <MapPin size={12} color="var(--primary)" /> 
+                          {showMapMap[j.id] ? 'Hide Route Map' : 'View Route on Map'}
+                        </button>
+                      )}
+
+                      {showMapMap[j.id] && (
+                        <JobRouteMap
+                          workerLat={worker?.latitude}
+                          workerLng={worker?.longitude}
+                          homeownerLat={j.latitude || j.homeowners?.latitude}
+                          homeownerLng={j.longitude || j.homeowners?.longitude}
+                          workerAvatar={worker?.selfie_url || worker?.avatar_url}
+                          homeownerAvatar={j.homeowners?.avatar_url}
+                          homeownerName={j.homeowners?.full_name}
+                          address={j.address}
+                        />
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
