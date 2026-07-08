@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { calculateDistance } from '../../utils/gps'
 
 // Helper component to center view dynamically
 function ChangeMapView({ center }) {
@@ -91,12 +92,18 @@ export default function JobRouteMap({ workerLat, workerLng, homeownerLat, homeow
   // 2. Simulated real-time movement state
   const [simulatedLat, setSimulatedLat] = useState(wLat)
   const [simulatedLng, setSimulatedLng] = useState(wLng)
+  const [currentDistance, setCurrentDistance] = useState(0)
+  const [estTime, setEstTime] = useState(0) // in minutes
 
   useEffect(() => {
     setCenter([(wLat + hLat) / 2, (wLng + hLng) / 2])
   }, [wLat, wLng, hLat, hLng])
 
   useEffect(() => {
+    const totalDist = calculateDistance(wLat, wLng, hLat, hLng)
+    setCurrentDistance(totalDist)
+    setEstTime(Math.round(totalDist * 3.5)) // Assume ~3.5 minutes per km driving/walking
+    
     let pct = 0
     const interval = setInterval(() => {
       pct += 0.5 // Increment step
@@ -107,6 +114,11 @@ export default function JobRouteMap({ workerLat, workerLng, homeownerLat, homeow
       const currentLng = wLng + (hLng - wLng) * (pct / 100)
       setSimulatedLat(currentLat)
       setSimulatedLng(currentLng)
+
+      // Calculate remaining distance from the animated cleaner to the homeowner
+      const remainingDist = calculateDistance(currentLat, currentLng, hLat, hLng)
+      setCurrentDistance(remainingDist)
+      setEstTime(Math.round(remainingDist * 3.5)) // Recalculate ETA in minutes
     }, 80) // Smooth movement updates
 
     return () => clearInterval(interval)
@@ -123,6 +135,36 @@ export default function JobRouteMap({ workerLat, workerLng, homeownerLat, homeow
       zIndex: 1,
       marginTop: '0.75rem'
     }}>
+      {/* Floating Info Overlay for Live Distance & ETA */}
+      <div style={{
+        position: 'absolute',
+        top: '12px',
+        right: '12px',
+        background: 'rgba(15, 23, 42, 0.9)',
+        border: '1px solid var(--border-glass)',
+        padding: '8px 12px',
+        borderRadius: '12px',
+        boxShadow: 'var(--shadow-md)',
+        zIndex: 10,
+        color: '#f1f5f9',
+        fontSize: '11px',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px',
+        pointerEvents: 'none',
+        backdropFilter: 'blur(8px)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span>📍</span>
+          <span><strong>Distance:</strong> {currentDistance.toFixed(2)} km</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span>⏱️</span>
+          <span><strong>ETA:</strong> {estTime > 0 ? `${estTime} mins` : 'Arriving...'}</span>
+        </div>
+      </div>
+
       <MapContainer 
         center={center} 
         zoom={12} 
@@ -149,7 +191,10 @@ export default function JobRouteMap({ workerLat, workerLng, homeownerLat, homeow
         <Marker position={[simulatedLat, simulatedLng]} icon={createWorkerIcon(workerAvatar)}>
           <Popup>
             <div style={{ fontSize: '11px', color: '#0f172a' }}>
-              <strong>🧹 Cleaner (On the Way)</strong>
+              <strong>🧹 Cleaner (On the Way)</strong><br/>
+              <span style={{ color: '#64748b', fontSize: '10px' }}>
+                Distance: {currentDistance.toFixed(2)} km
+              </span>
             </div>
           </Popup>
         </Marker>
