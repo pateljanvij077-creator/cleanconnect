@@ -5,15 +5,17 @@ import { getWorkerBookings, updateBookingStatus, confirmBookingCall } from '../.
 import { createNotification } from '../../services/notifications'
 import { updateWorkerGPSLocation } from '../../services/workers'
 import { formatDate, formatTime } from '../../utils/helpers'
-import { Phone, Check, X, AlertCircle, ClipboardList } from 'lucide-react'
+import { Phone, Check, X, AlertCircle, ClipboardList, MapPin } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getCurrentPosition, getLocationDetails } from '../../utils/gps'
 import { motion, AnimatePresence } from 'framer-motion'
+import JobRouteMap from '../../components/maps/JobRouteMap'
 
 export default function BookingRequests() {
   const { worker } = useAuth()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showMapMap, setShowMapMap] = useState({}) // keyed by booking ID
 
   // Track checkboxes for confirmation calls per booking ID
   const [callConfirmedMap, setCallConfirmedMap] = useState({})
@@ -184,6 +186,31 @@ export default function BookingRequests() {
                       <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                         📍 <strong>Address:</strong> {r.address}
                       </p>
+                      
+                      {/* Map Toggle Button */}
+                      {(r.latitude || r.homeowners?.latitude) && (
+                        <button 
+                          onClick={() => setShowMapMap(prev => ({ ...prev, [r.id]: !prev[r.id] }))}
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '4px 8px', fontSize: '12px', marginTop: '0.25rem', gap: '4px', height: 'auto', minHeight: 'auto', display: 'flex', alignItems: 'center' }}
+                        >
+                          <MapPin size={12} color="var(--primary)" /> 
+                          {showMapMap[r.id] ? 'Hide Location Map' : 'View Location on Map'}
+                        </button>
+                      )}
+
+                      {showMapMap[r.id] && (
+                        <JobRouteMap
+                          workerLat={worker?.latitude}
+                          workerLng={worker?.longitude}
+                          homeownerLat={r.latitude || r.homeowners?.latitude}
+                          homeownerLng={r.longitude || r.homeowners?.longitude}
+                          workerAvatar={worker?.selfie_url || worker?.avatar_url}
+                          homeownerAvatar={r.homeowners?.avatar_url}
+                          homeownerName={r.homeowners?.full_name}
+                          address={r.address}
+                        />
+                      )}
                       {r.notes && (
                         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '6px 10px', borderRadius: '6px', marginTop: '0.5rem' }}>
                           📝 <strong>Notes:</strong> {r.notes}
