@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import BottomSheet from '../../components/common/BottomSheet'
 import LocationModal from '../../components/common/LocationModal'
+import WorkerMap from '../../components/maps/WorkerMap'
 
 export default function HomeOwnerDashboard() {
   const navigate = useNavigate()
@@ -26,6 +27,7 @@ export default function HomeOwnerDashboard() {
   
   const [favList, setFavList] = useState([])
   const [showFilters, setShowFilters] = useState(false)
+  const [viewMode, setViewMode] = useState('list') // 'list' or 'map'
 
   // Load homeowner favorites list
   useEffect(() => {
@@ -225,6 +227,19 @@ export default function HomeOwnerDashboard() {
               Try broadening your search filters or manual location coordinates to see more cleaners nearby.
             </p>
           </div>
+        ) : viewMode === 'map' ? (
+          <div>
+            <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+              Nearby Matched Cleaners on Map ({filteredWorkers.length})
+            </h4>
+            <WorkerMap
+              homeowner={homeowner}
+              workers={filteredWorkers}
+              maxDistance={maxDistance}
+              onBook={handleBooking}
+              onViewProfile={handleViewProfile}
+            />
+          </div>
         ) : (
           <div>
             <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--text-secondary)' }}>
@@ -255,6 +270,42 @@ export default function HomeOwnerDashboard() {
             </motion.div>
           </div>
         )}
+
+        {/* Floating Toggle Button */}
+        <div style={{
+          position: 'fixed',
+          bottom: '80px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          display: 'flex',
+          justifyContent: 'center'
+        }}>
+          <button 
+            onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+            className="btn btn-primary"
+            style={{
+              boxShadow: '0 8px 30px rgba(124, 58, 237, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              borderRadius: '30px',
+              backdropFilter: 'blur(8px)',
+              background: 'rgba(124, 58, 237, 0.95)',
+              fontSize: '14px',
+              fontWeight: 700,
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              cursor: 'pointer'
+            }}
+          >
+            {viewMode === 'list' ? (
+              <>🗺️ Map View</>
+            ) : (
+              <>📋 List View</>
+            )}
+          </button>
+        </div>
 
       </div>
 
